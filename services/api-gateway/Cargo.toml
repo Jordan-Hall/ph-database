@@ -1,0 +1,59 @@
+[package]
+name = "api-gateway"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web framework
+axum = { version = "0.7", features = ["macros"] }
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["fs", "trace", "cors", "limit"] }
+
+# SurrealDB client
+surrealdb = { version = "2.0", features = ["protocol-ws"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Authentication & Security
+jsonwebtoken = "9"
+bcrypt = "0.15"
+argon2 = "0.5"
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Environment & Config
+dotenvy = "0.15"
+config = "0.14"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Rate limiting
+governor = "0.6"
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Validation
+validator = { version = "0.18", features = ["derive"] }
+
+# UUID
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Hashing
+sha2 = "0.10"
+hex = "0.4"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["util"] }
+http-body-util = "0.1"
