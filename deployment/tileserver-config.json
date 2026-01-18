@@ -1,0 +1,26 @@
+{
+  "options": {
+    "paths": {
+      "root": "/data",
+      "fonts": "/usr/src/app/node_modules/@fontsource/open-sans/files",
+      "sprites": "/data/sprites",
+      "styles": "/data/styles",
+      "mbtiles": "/data"
+    },
+    "serveAllStyles": false
+  },
+  "styles": {
+    "basic": {
+      "style": "basic.json",
+      "tilejson": {
+        "type": "overlay",
+        "bounds": [-10.76418, 49.528423, 1.9134116, 61.331151]
+      }
+    }
+  },
+  "data": {
+    "united-kingdom": {
+      "mbtiles": "united-kingdom.mbtiles"
+    }
+  }
+}

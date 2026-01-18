@@ -1,0 +1,273 @@
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # DATABASE & CACHE
+  # ===========================================================================
+
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: ph-surrealdb
+    command: start --user root --pass ${SURREAL_PASS:-root} file:/data/db
+    ports:
+      - "8000:8000"
+    volumes:
+      - surreal-data:/data
+      - ../database/schemas:/schemas:ro
+    environment:
+      - SURREAL_LOG=info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ph-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ph-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ph-network
+
+  # ===========================================================================
+  # OBJECT STORAGE
+  # ===========================================================================
+
+  minio:
+    image: minio/minio:latest
+    container_name: ph-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-adminpassword}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ph-network
+
+  # MinIO client for bucket setup
+  minio-client:
+    image: minio/mc:latest
+    container_name: ph-minio-client
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-adminpassword};
+      mc mb myminio/evidence --ignore-existing;
+      mc mb myminio/media --ignore-existing;
+      mc mb myminio/thumbnails --ignore-existing;
+      mc mb myminio/previews --ignore-existing;
+      mc anonymous set download myminio/media;
+      mc anonymous set download myminio/thumbnails;
+      mc anonymous set download myminio/previews;
+      exit 0;
+      "
+    networks:
+      - ph-network
+
+  # ===========================================================================
+  # API GATEWAY
+  # ===========================================================================
+
+  api-gateway:
+    build:
+      context: ../services/api-gateway
+      dockerfile: Dockerfile
+    container_name: ph-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=ws://surrealdb:8000
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - MEDIA_SERVICE_URL=http://media-service:8081
+      - AI_SERVICE_URL=http://ai-service:8082
+      - ALERTS_SERVICE_URL=http://alerts-service:8083
+    depends_on:
+      - surrealdb
+      - redis
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # MEDIA SERVICE
+  # ===========================================================================
+
+  media-service:
+    build:
+      context: ../services/media-service
+      dockerfile: Dockerfile
+    container_name: ph-media-service
+    ports:
+      - "8081:8081"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=ws://surrealdb:8000
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=${MINIO_ROOT_USER:-admin}
+      - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-adminpassword}
+      - S3_BUCKET_EVIDENCE=evidence
+      - S3_BUCKET_MEDIA=media
+      - MAX_UPLOAD_SIZE=524288000  # 500MB
+    volumes:
+      - /tmp/ph-uploads:/tmp/uploads
+    depends_on:
+      - surrealdb
+      - minio
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # AI SERVICE (Face Recognition)
+  # ===========================================================================
+
+  ai-service:
+    build:
+      context: ../services/ai-service
+      dockerfile: Dockerfile
+    container_name: ph-ai-service
+    ports:
+      - "8082:8082"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=ws://surrealdb:8000
+      - MODEL_PATH=/models/facenet.onnx
+      - MAX_QUERY_RATE=10  # per hour per user
+    volumes:
+      - ../models:/models:ro
+    depends_on:
+      - surrealdb
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # ALERTS SERVICE
+  # ===========================================================================
+
+  alerts-service:
+    build:
+      context: ../services/alerts-service
+      dockerfile: Dockerfile
+    container_name: ph-alerts-service
+    ports:
+      - "8083:8083"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=ws://surrealdb:8000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - surrealdb
+      - redis
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # MODERATION SERVICE
+  # ===========================================================================
+
+  moderation-service:
+    build:
+      context: ../services/moderation-service
+      dockerfile: Dockerfile
+    container_name: ph-moderation-service
+    ports:
+      - "8084:8084"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=ws://surrealdb:8000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - surrealdb
+      - redis
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # MAPPING STACK
+  # ===========================================================================
+
+  tileserver:
+    image: maptiler/tileserver-gl:latest
+    container_name: ph-tileserver
+    ports:
+      - "8082:8080"
+    volumes:
+      - ../tiles:/data:ro
+      - ./tileserver-config.json:/config.json:ro
+    command: --config /config.json
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+  # Optional: Nominatim for geocoding
+  nominatim:
+    image: mediagis/nominatim:4.2
+    container_name: ph-nominatim
+    ports:
+      - "8085:8080"
+    environment:
+      - PBF_URL=https://download.geofabrik.de/europe/united-kingdom-latest.osm.pbf
+      - REPLICATION_URL=https://download.geofabrik.de/europe/united-kingdom-updates/
+      - IMPORT_WIKIPEDIA=false
+      - NOMINATIM_PASSWORD=very-secure-password
+    volumes:
+      - nominatim-data:/var/lib/postgresql/14/main
+    shm_size: 1gb
+    networks:
+      - ph-network
+
+  # ===========================================================================
+  # FRONTEND (Dioxus Web App)
+  # ===========================================================================
+
+  web-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile.web
+    container_name: ph-web-app
+    ports:
+      - "80:80"
+    environment:
+      - API_BASE_URL=http://api-gateway:8080
+    depends_on:
+      - api-gateway
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+networks:
+  ph-network:
+    driver: bridge
+
+volumes:
+  surreal-data:
+  redis-data:
+  minio-data:
+  nominatim-data:
