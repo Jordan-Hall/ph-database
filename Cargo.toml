@@ -1,0 +1,42 @@
+[package]
+name = "predator-hunters-db"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Dioxus framework
+dioxus = "0.7"
+dioxus-web = "0.7"
+dioxus-router = "0.7"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date/time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Web utilities
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Document",
+    "Element",
+    "HtmlElement",
+    "Storage",
+    "console",
+] }
+
+# Logging
+log = "0.4"
+console_log = "1.0"
+
+# Timers
+gloo-timers = { version = "0.3", features = ["futures"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1

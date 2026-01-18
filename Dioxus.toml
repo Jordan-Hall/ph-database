@@ -1,0 +1,16 @@
+[application]
+name = "predator-hunters-db"
+default_platform = "web"
+
+[web.app]
+title = "Predator Hunters Database"
+base_path = "/"
+
+[web.watcher]
+watch_path = ["src", "assets"]
+
+[web.resource]
+style = ["assets/gds-styles.css"]
+
+[web.resource.dev]
+mount_point = "/"
