@@ -162,7 +162,7 @@ async fn withdraw_item(
         .db
         .client
         .query(&update_query)
-        .bind(("reason", &payload.reason))
+        .bind(("reason", payload.reason.clone()))
         .await
         .map_err(|e| {
             tracing::error!("Failed to withdraw item: {}", e);
@@ -392,7 +392,7 @@ async fn get_published_item(
         .db
         .client
         .query(query)
-        .bind(("slug", &slug))
+        .bind(("slug", slug.clone()))
         .await
         .map_err(|e| {
             tracing::error!("Failed to fetch published item: {}", e);

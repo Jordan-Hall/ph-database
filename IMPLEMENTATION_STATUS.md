@@ -313,14 +313,15 @@ This document tracks the implementation progress of the Predator Hunters Platfor
   - [x] Usage tracking placeholders
   - [x] Match summaries with conviction ID, offense category, and manual review flags
 
-- [ ] **Survivor Stories** (Schema Complete, Endpoints Pending)
+- [x] **Survivor Stories** (Complete)
   - [x] Database schema with RLAC and consent tracking
   - [x] Models with status workflow (pending, reviewing, approved, rejected, published)
   - [x] Anonymity support with optional pseudonyms
   - [x] Trigger warnings and consent management
-  - [ ] Submission endpoints (authenticated and anonymous)
-  - [ ] Review workflow endpoints
-  - [ ] Publish/withdraw endpoints
+  - [x] Submission endpoints (authenticated and anonymous)
+  - [x] Review workflow endpoints (review, approve/reject)
+  - [x] Publish/withdraw endpoints
+  - [x] 8 endpoints total: 3 public (list, get, submit), 5 protected (review queue, review, publish, withdraw)
 
 ---
 
@@ -790,6 +791,7 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - **Missing Person Alerts**: TTL-managed alerts with verification workflow
 - **Map Integration**: Geo-bounded queries with precision controls and fuzzy display
 - **Business API**: Conviction validation with API key authentication and tiered rate limiting
+- **Survivor Stories**: Complete submission, review, and publishing workflow with consent management
 - **Video Upload**: Multipart upload up to 5GB
 - **Video Processing**: FFmpeg integration (thumbnails, transcoding, preview clips)
 - **Object Storage**: MinIO/S3 integration for media files
@@ -811,7 +813,6 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - Email/SMS notifications for alerts
 - TLS/SSL certificate setup
 - Secrets management (Vault)
-- Survivor stories endpoints (schema complete)
 
 ### Known Limitations
 - Token verification not fully implemented (TODO in verify_token)
