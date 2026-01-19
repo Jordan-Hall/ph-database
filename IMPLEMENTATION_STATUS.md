@@ -236,7 +236,7 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 
 ---
 
-## 🔄 Phase 3: Full Endpoint Implementation (IN PROGRESS - 60% Complete)
+## 🔄 Phase 3: Full Endpoint Implementation (IN PROGRESS - 70% Complete)
 
 ### Priority 1: Core Functionality
 - [x] **Reports Service**
@@ -268,16 +268,19 @@ This document tracks the implementation progress of the Predator Hunters Platfor
   - [ ] Integration into all sensitive endpoints
 
 ### Priority 2: Review Workflows
-- [ ] **Review Queue**
-  - [ ] Get review queue with filters
-  - [ ] Assign reviews
-  - [ ] Review decision workflow
+- [x] **Review Queue**
+  - [x] Get review queue with priority scoring (harm_risk + age)
+  - [x] Assign reviews to moderators
+  - [x] Review decision workflow (approve/reject/needs_more_info)
+  - [x] Review detail endpoint with full context
   - [ ] Escalation logic
 
-- [ ] **Publishing**
-  - [ ] Publish approved items
-  - [ ] Correction workflows
-  - [ ] Takedown handling
+- [x] **Publishing**
+  - [x] Publish approved items with slug-based URLs
+  - [x] Correction workflows with versioning
+  - [x] Takedown request handling
+  - [x] Withdraw published items
+  - [x] Public access via slug (no auth required)
   - [ ] Appeal process
 
 ### Priority 3: Advanced Features
@@ -482,13 +485,13 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 | Phase 1: Architecture & Planning | ✅ Complete | 100% |
 | Phase 2: API Gateway Foundation | ✅ Complete | 100% |
 | Phase 2.5: SurrealDB Native Features | ✅ Complete | 100% |
-| Phase 3: Full Endpoint Implementation | 🔄 In Progress | 20% |
+| Phase 3: Full Endpoint Implementation | 🔄 In Progress | 70% |
 | Phase 4: Microservices (Reduced) | ⏳ Pending | 0% |
 | Phase 5: Frontend Enhancement | ⏳ Pending | 0% |
 | Phase 6: Mapping Stack | ⏳ Pending | 0% |
 | Phase 7: Security & Hardening | ⏳ Pending | 0% |
 
-**Overall Progress: ~35%**
+**Overall Progress: ~46%**
 
 ---
 
@@ -548,6 +551,11 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - **Full-Text Search**: BM25 ranking with highlights (GET /api/v1/reports/search)
 - **Graph Queries**: Connection analysis (GET /api/v1/reports/:id/connections)
 - **Face Search**: SurrealDB ML ephemeral search (POST /api/v1/face-search)
+- **Review Queue**: Priority-scored queue with assign/decision workflows
+- **Publishing**: Slug-based public items with corrections and takedown requests
+- **User Management**: Profile and role management with RLAC
+- **Audit Logging**: Comprehensive audit trail for all sensitive actions
+- **Evidence Management**: Upload and chain of custody tracking
 - **Error Handling**: Comprehensive error responses
 - **Rate Limiting**: Redis-based per-IP limiting
 - **RLAC**: Database-enforced row-level permissions
@@ -561,13 +569,15 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - Real-time features (WebSocket/Live Queries)
 
 ### Known Limitations
-- Report create/update/delete endpoints are stubs
 - Token verification not fully implemented (TODO in verify_token)
-- Face search uses placeholder user ID (auth middleware not wired)
 - No refresh token mechanism yet
 - No background job scheduler yet
 - No email/SMS notifications yet
 - OSM tiles not generated yet
+- Missing person alerts not implemented
+- Map integration not implemented
+- Escalation logic for reviews not implemented
+- Appeal process for takedowns not implemented
 
 ---
 
