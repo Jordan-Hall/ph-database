@@ -236,7 +236,7 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 
 ---
 
-## 🔄 Phase 3: Full Endpoint Implementation (IN PROGRESS - 85% Complete)
+## 🔄 Phase 3: Full Endpoint Implementation (IN PROGRESS - 90% Complete)
 
 ### Priority 1: Core Functionality
 - [x] **Reports Service**
@@ -302,6 +302,15 @@ This document tracks the implementation progress of the Predator Hunters Platfor
   - [x] Bounds-based queries for efficient map loading
   - [x] Fuzzy location display for public protection
   - [x] Verify map entries (reviewer/admin)
+
+- [ ] **Survivor Stories** (Schema Complete, Endpoints Pending)
+  - [x] Database schema with RLAC and consent tracking
+  - [x] Models with status workflow (pending, reviewing, approved, rejected, published)
+  - [x] Anonymity support with optional pseudonyms
+  - [x] Trigger warnings and consent management
+  - [ ] Submission endpoints (authenticated and anonymous)
+  - [ ] Review workflow endpoints
+  - [ ] Publish/withdraw endpoints
 
 ---
 
@@ -492,13 +501,13 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 | Phase 1: Architecture & Planning | ✅ Complete | 100% |
 | Phase 2: API Gateway Foundation | ✅ Complete | 100% |
 | Phase 2.5: SurrealDB Native Features | ✅ Complete | 100% |
-| Phase 3: Full Endpoint Implementation | 🔄 In Progress | 85% |
+| Phase 3: Full Endpoint Implementation | 🔄 In Progress | 90% |
 | Phase 4: Microservices (Reduced) | ⏳ Pending | 0% |
 | Phase 5: Frontend Enhancement | ⏳ Pending | 0% |
 | Phase 6: Mapping Stack | ⏳ Pending | 0% |
 | Phase 7: Security & Hardening | ⏳ Pending | 0% |
 
-**Overall Progress: ~52%**
+**Overall Progress: ~55%**
 
 ---
 
@@ -585,7 +594,7 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - OSM tiles not generated yet
 - Escalation logic for reviews not implemented
 - Appeal process for takedowns not implemented
-- Survivor stories endpoints not implemented
+- Survivor stories endpoints not implemented (schema and models complete)
 
 ---
 

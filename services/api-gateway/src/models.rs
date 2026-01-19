@@ -285,6 +285,78 @@ fn default_map_limit() -> u32 {
 }
 
 // ============================================================================
+// SURVIVOR STORY MODELS
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SurvivorStory {
+    pub id: Option<String>,
+    pub title: String,
+    pub content: String,
+    pub author_pseudonym: Option<String>,
+    pub submitted_by: Option<String>,
+    pub consent_given: bool,
+    pub consent_date: Option<DateTime<Utc>>,
+    pub consent_details: Option<String>,
+    pub status: StoryStatus,
+    pub published_at: Option<DateTime<Utc>>,
+    pub reviewed_by: Option<String>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub review_notes: Option<String>,
+    pub visibility: StoryVisibility,
+    pub trigger_warning: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum StoryStatus {
+    Pending,
+    Reviewing,
+    Approved,
+    Rejected,
+    Published,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum StoryVisibility {
+    Private,
+    Public,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct SubmitStoryRequest {
+    #[validate(length(min = 10, max = 200))]
+    pub title: String,
+    #[validate(length(min = 100, max = 50000))]
+    pub content: String,
+    #[validate(length(max = 100))]
+    pub author_pseudonym: Option<String>,
+    pub consent_given: bool,
+    pub consent_details: Option<String>,
+    pub trigger_warning: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReviewStoryRequest {
+    pub status: StoryStatus,
+    pub review_notes: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StoryQueryParams {
+    #[serde(default = "default_story_limit")]
+    pub limit: u32,
+    pub status: Option<String>,
+}
+
+fn default_story_limit() -> u32 {
+    20
+}
+
+// ============================================================================
 // FACE SEARCH MODELS
 // ============================================================================
 

@@ -640,3 +640,41 @@ DEFINE FIELD created_at ON takedown_request TYPE datetime DEFAULT time::now();
 
 DEFINE INDEX idx_takedown_status ON takedown_request FIELDS status, created_at;
 DEFINE INDEX idx_takedown_item ON takedown_request FIELDS item_id;
+
+-- ============================================================================
+-- SURVIVOR STORIES (with RLAC and Consent)
+-- ============================================================================
+
+DEFINE TABLE survivor_story SCHEMAFULL
+    PERMISSIONS
+        FOR select WHERE
+            (status = "published" AND visibility = "public") OR
+            submitted_by = $auth.id OR
+            $auth.roles CONTAINS "reviewer" OR
+            $auth.roles CONTAINS "admin"
+        FOR create WHERE $auth.id != NONE
+        FOR update WHERE
+            submitted_by = $auth.id OR
+            $auth.roles CONTAINS "reviewer" OR
+            $auth.roles CONTAINS "admin"
+        FOR delete WHERE $auth.roles CONTAINS "admin";
+
+DEFINE FIELD title ON survivor_story TYPE string;
+DEFINE FIELD content ON survivor_story TYPE string;
+DEFINE FIELD author_pseudonym ON survivor_story TYPE option<string>;
+DEFINE FIELD submitted_by ON survivor_story TYPE option<record<user>>;
+DEFINE FIELD consent_given ON survivor_story TYPE bool DEFAULT false;
+DEFINE FIELD consent_date ON survivor_story TYPE option<datetime>;
+DEFINE FIELD consent_details ON survivor_story TYPE option<string>;  -- What they consented to
+DEFINE FIELD status ON survivor_story TYPE string DEFAULT "pending";  -- pending, reviewing, approved, rejected, published
+DEFINE FIELD published_at ON survivor_story TYPE option<datetime>;
+DEFINE FIELD reviewed_by ON survivor_story TYPE option<record<user>>;
+DEFINE FIELD reviewed_at ON survivor_story TYPE option<datetime>;
+DEFINE FIELD review_notes ON survivor_story TYPE option<string>;
+DEFINE FIELD visibility ON survivor_story TYPE string DEFAULT "private";  -- private, public
+DEFINE FIELD trigger_warning ON survivor_story TYPE option<string>;
+DEFINE FIELD created_at ON survivor_story TYPE datetime DEFAULT time::now();
+DEFINE FIELD updated_at ON survivor_story TYPE datetime DEFAULT time::now();
+
+DEFINE INDEX idx_story_status ON survivor_story FIELDS status, created_at;
+DEFINE INDEX idx_story_visibility ON survivor_story FIELDS visibility, status;
