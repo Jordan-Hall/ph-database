@@ -236,7 +236,7 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 
 ---
 
-## 🔄 Phase 3: Full Endpoint Implementation (IN PROGRESS - 70% Complete)
+## 🔄 Phase 3: Full Endpoint Implementation (IN PROGRESS - 85% Complete)
 
 ### Priority 1: Core Functionality
 - [x] **Reports Service**
@@ -284,17 +284,24 @@ This document tracks the implementation progress of the Predator Hunters Platfor
   - [ ] Appeal process
 
 ### Priority 3: Advanced Features
-- [ ] **Missing Person Alerts**
-  - [ ] Create alert with verification
-  - [ ] TTL lifecycle management
-  - [ ] Active alerts endpoint
-  - [ ] Resolution workflow
+- [x] **Missing Person Alerts**
+  - [x] Create alert with verification
+  - [x] TTL lifecycle management (auto-expiry via SurrealDB function)
+  - [x] Active alerts endpoint (public access)
+  - [x] Get alert by ID with access control
+  - [x] Update alert status (creator/reviewer)
+  - [x] Verify alert (reviewer/admin only)
+  - [x] Resolve alert with resolution notes
+  - [x] Comprehensive audit logging
 
-- [ ] **Map Integration**
-  - [ ] Map entry CRUD
-  - [ ] Precision controls
-  - [ ] Visibility tier filtering
-  - [ ] Bounds-based queries
+- [x] **Map Integration**
+  - [x] Map entry CRUD with geo bounding box queries
+  - [x] Precision controls (exact, street, district, city)
+  - [x] Display policies (standard, fuzzy, hidden)
+  - [x] Visibility tier filtering with RLAC
+  - [x] Bounds-based queries for efficient map loading
+  - [x] Fuzzy location display for public protection
+  - [x] Verify map entries (reviewer/admin)
 
 ---
 
@@ -485,13 +492,13 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 | Phase 1: Architecture & Planning | ✅ Complete | 100% |
 | Phase 2: API Gateway Foundation | ✅ Complete | 100% |
 | Phase 2.5: SurrealDB Native Features | ✅ Complete | 100% |
-| Phase 3: Full Endpoint Implementation | 🔄 In Progress | 70% |
+| Phase 3: Full Endpoint Implementation | 🔄 In Progress | 85% |
 | Phase 4: Microservices (Reduced) | ⏳ Pending | 0% |
 | Phase 5: Frontend Enhancement | ⏳ Pending | 0% |
 | Phase 6: Mapping Stack | ⏳ Pending | 0% |
 | Phase 7: Security & Hardening | ⏳ Pending | 0% |
 
-**Overall Progress: ~46%**
+**Overall Progress: ~52%**
 
 ---
 
@@ -556,6 +563,8 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - **User Management**: Profile and role management with RLAC
 - **Audit Logging**: Comprehensive audit trail for all sensitive actions
 - **Evidence Management**: Upload and chain of custody tracking
+- **Missing Person Alerts**: TTL-managed alerts with verification workflow
+- **Map Integration**: Geo-bounded queries with precision controls and fuzzy display
 - **Error Handling**: Comprehensive error responses
 - **Rate Limiting**: Redis-based per-IP limiting
 - **RLAC**: Database-enforced row-level permissions
@@ -571,13 +580,12 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 ### Known Limitations
 - Token verification not fully implemented (TODO in verify_token)
 - No refresh token mechanism yet
-- No background job scheduler yet
+- No background job scheduler yet (except TTL via SurrealDB events)
 - No email/SMS notifications yet
 - OSM tiles not generated yet
-- Missing person alerts not implemented
-- Map integration not implemented
 - Escalation logic for reviews not implemented
 - Appeal process for takedowns not implemented
+- Survivor stories endpoints not implemented
 
 ---
 

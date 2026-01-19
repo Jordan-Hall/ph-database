@@ -177,6 +177,113 @@ pub enum AlertPriority {
     Critical,
 }
 
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateAlertRequest {
+    #[validate(length(min = 3, max = 100))]
+    pub full_name: String,
+    #[validate(range(min = 0, max = 150))]
+    pub age: u32,
+    #[validate(length(min = 20, max = 2000))]
+    pub description: String,
+    pub last_seen_date: DateTime<Utc>,
+    pub last_seen_location: Option<serde_json::Value>,  // GeoJSON point
+    pub photo_url: Option<String>,
+    #[validate(length(min = 10, max = 200))]
+    pub contact_info: String,
+    pub priority: AlertPriority,
+    pub geofence_radius_km: Option<f64>,
+    pub active_days: Option<u32>,  // Default 30 days
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateAlertStatusRequest {
+    pub status: AlertStatus,
+    pub resolution_notes: Option<String>,
+}
+
+fn default_alert_limit() -> u32 {
+    50
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AlertQueryParams {
+    #[serde(default = "default_alert_limit")]
+    pub limit: u32,
+    pub status: Option<String>,
+    pub priority: Option<String>,
+}
+
+// ============================================================================
+// MAP ENTRY MODELS
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MapEntry {
+    pub id: Option<String>,
+    pub geometry: serde_json::Value,  // GeoJSON Point
+    pub precision_class: PrecisionClass,
+    pub display_policy: DisplayPolicy,
+    pub linked_item_id: Option<String>,
+    pub linked_conviction_id: Option<String>,
+    pub street_name: String,
+    pub city: String,
+    pub postcode_district: Option<String>,
+    pub visibility_tier: VisibilityTier,
+    pub harm_risk: HarmRisk,
+    pub verified: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PrecisionClass {
+    Exact,      // Full address
+    Street,     // Street name only
+    District,   // Postcode district
+    City,       // City level
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum DisplayPolicy {
+    Standard,   // Show as-is
+    Fuzzy,      // Show approximate location
+    Hidden,     // Don't display on public map
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateMapEntryRequest {
+    pub longitude: f64,
+    pub latitude: f64,
+    pub precision_class: PrecisionClass,
+    pub display_policy: DisplayPolicy,
+    pub linked_item_id: Option<String>,
+    pub linked_conviction_id: Option<String>,
+    #[validate(length(min = 3, max = 200))]
+    pub street_name: String,
+    #[validate(length(min = 2, max = 100))]
+    pub city: String,
+    pub postcode_district: Option<String>,
+    pub visibility_tier: VisibilityTier,
+    pub harm_risk: HarmRisk,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MapBoundsQuery {
+    pub north: f64,
+    pub south: f64,
+    pub east: f64,
+    pub west: f64,
+    pub visibility_tier: Option<String>,
+    pub harm_risk: Option<String>,
+    #[serde(default = "default_map_limit")]
+    pub limit: u32,
+}
+
+fn default_map_limit() -> u32 {
+    200
+}
+
 // ============================================================================
 // FACE SEARCH MODELS
 // ============================================================================
