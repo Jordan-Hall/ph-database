@@ -259,6 +259,83 @@ pub enum RiskLevel {
 }
 
 // ============================================================================
+// EVIDENCE & MEDIA MODELS
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Evidence {
+    pub id: Option<String>,
+    pub report_id: String,
+    pub media_asset_id: Option<String>,
+    pub evidence_type: EvidenceType,
+    pub description: String,
+    pub collected_at: Option<DateTime<Utc>>,
+    pub chain_of_custody: Vec<serde_json::Value>,
+    pub sealed: bool,
+    pub sealed_at: Option<DateTime<Utc>>,
+    pub sealed_by: Option<String>,
+    pub submitted_by: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceType {
+    Video,
+    Image,
+    Document,
+    Testimony,
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MediaAsset {
+    pub id: Option<String>,
+    pub filename: String,
+    pub mime_type: String,
+    pub file_size_bytes: i64,
+    pub storage_path: String,
+    pub storage_url: Option<String>,
+    pub thumbnail_url: Option<String>,
+    pub preview_url: Option<String>,
+    pub duration_seconds: Option<f32>,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+    pub transcoding_status: TranscodingStatus,
+    pub checksum_sha256: String,
+    pub uploaded_by: Option<String>,
+    pub uploaded_at: DateTime<Utc>,
+    pub processed_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TranscodingStatus {
+    Pending,
+    Processing,
+    Complete,
+    Failed,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct UploadEvidenceRequest {
+    #[validate(length(min = 1))]
+    pub evidence_type: String,
+    #[validate(length(min = 5, max = 1000))]
+    pub description: String,
+    pub collected_at: Option<DateTime<Utc>>,
+    pub file_base64: Option<String>,  // For small files (images, documents)
+    pub filename: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EvidenceResponse {
+    pub evidence: Evidence,
+    pub upload_url: Option<String>,  // For large files (videos) - presigned S3 URL
+}
+
+// ============================================================================
 // PAGINATION
 // ============================================================================
 

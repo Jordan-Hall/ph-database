@@ -1,13 +1,14 @@
 use axum::{
     extract::State,
     routing::post,
-    Json, Router,
+    Extension, Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::{
     error::{ApiError, ApiResult},
+    models::User,
     services::surrealdb_features::{FaceSearchResult, FaceSearchService},
     AppState,
 };
@@ -34,6 +35,7 @@ struct FaceSearchResponse {
 /// The query image is NEVER stored, only processed in-memory
 async fn search_faces(
     State(state): State<AppState>,
+    Extension(user): Extension<User>,
     Json(payload): Json<FaceSearchRequest>,
 ) -> ApiResult<Json<FaceSearchResponse>> {
     // Validate request
@@ -41,9 +43,16 @@ async fn search_faces(
         .validate()
         .map_err(|e| ApiError::Validation(e.to_string()))?;
 
-    // For now, use placeholder user ID
-    // TODO: Extract from auth middleware when protected routes are configured
-    let user_id = "user:placeholder".to_string();
+    // Check if user has permission to search faces (reviewer or admin only)
+    if !user.roles.contains(&"reviewer".to_string())
+        && !user.roles.contains(&"admin".to_string())
+    {
+        return Err(ApiError::Authorization(
+            "Face search requires reviewer or admin role".to_string(),
+        ));
+    }
+
+    let user_id = user.id.clone().unwrap_or_else(|| "unknown".to_string());
 
     // Use SurrealDB ML for face search
     let face_service = FaceSearchService::new(state.db.clone());
@@ -52,7 +61,8 @@ async fn search_faces(
         .await?;
 
     tracing::info!(
-        "Face search completed for user {} with {} results",
+        "Face search completed for user {} ({}) with {} results",
+        user.username,
         user_id,
         results.len()
     );

@@ -477,3 +477,62 @@ DEFINE FIELD created_at ON map_entry TYPE datetime DEFAULT time::now();
 
 DEFINE INDEX idx_map_geometry ON map_entry FIELDS geometry;
 DEFINE INDEX idx_map_visibility ON map_entry FIELDS visibility_tier, harm_risk;
+
+-- ============================================================================
+-- EVIDENCE & MEDIA ASSETS (with RLAC)
+-- ============================================================================
+
+DEFINE TABLE evidence SCHEMAFULL
+    PERMISSIONS
+        FOR select WHERE
+            $auth.roles CONTAINS "reviewer" OR
+            $auth.roles CONTAINS "admin"
+        FOR create WHERE $auth.id != NONE
+        FOR update WHERE
+            $auth.roles CONTAINS "reviewer" OR
+            $auth.roles CONTAINS "admin"
+        FOR delete WHERE $auth.roles CONTAINS "admin";
+
+DEFINE FIELD report_id ON evidence TYPE record<report>;
+DEFINE FIELD media_asset_id ON evidence TYPE option<record<media_asset>>;
+DEFINE FIELD evidence_type ON evidence TYPE string;  -- video, image, document, testimony, other
+DEFINE FIELD description ON evidence TYPE string;
+DEFINE FIELD collected_at ON evidence TYPE option<datetime>;
+DEFINE FIELD chain_of_custody ON evidence TYPE array DEFAULT [];
+DEFINE FIELD sealed ON evidence TYPE bool DEFAULT false;
+DEFINE FIELD sealed_at ON evidence TYPE option<datetime>;
+DEFINE FIELD sealed_by ON evidence TYPE option<record<user>>;
+DEFINE FIELD submitted_by ON evidence TYPE option<record<user>>;
+DEFINE FIELD created_at ON evidence TYPE datetime DEFAULT time::now();
+DEFINE FIELD updated_at ON evidence TYPE datetime DEFAULT time::now();
+
+DEFINE INDEX idx_evidence_report ON evidence FIELDS report_id;
+DEFINE INDEX idx_evidence_sealed ON evidence FIELDS sealed;
+
+DEFINE TABLE media_asset SCHEMAFULL
+    PERMISSIONS
+        FOR select WHERE
+            $auth.roles CONTAINS "reviewer" OR
+            $auth.roles CONTAINS "admin"
+        FOR create WHERE $auth.id != NONE
+        FOR update WHERE $auth.roles CONTAINS "admin"
+        FOR delete WHERE $auth.roles CONTAINS "admin";
+
+DEFINE FIELD filename ON media_asset TYPE string;
+DEFINE FIELD mime_type ON media_asset TYPE string;
+DEFINE FIELD file_size_bytes ON media_asset TYPE int;
+DEFINE FIELD storage_path ON media_asset TYPE string;  -- Object storage path (S3, MinIO, etc.)
+DEFINE FIELD storage_url ON media_asset TYPE option<string>;  -- Presigned URL for access
+DEFINE FIELD thumbnail_url ON media_asset TYPE option<string>;
+DEFINE FIELD preview_url ON media_asset TYPE option<string>;  -- For videos: preview clip
+DEFINE FIELD duration_seconds ON media_asset TYPE option<float>;  -- For videos
+DEFINE FIELD width ON media_asset TYPE option<int>;  -- For images/videos
+DEFINE FIELD height ON media_asset TYPE option<int>;  -- For images/videos
+DEFINE FIELD transcoding_status ON media_asset TYPE string DEFAULT "pending";  -- pending, processing, complete, failed
+DEFINE FIELD checksum_sha256 ON media_asset TYPE string;
+DEFINE FIELD uploaded_by ON media_asset TYPE option<record<user>>;
+DEFINE FIELD uploaded_at ON media_asset TYPE datetime DEFAULT time::now();
+DEFINE FIELD processed_at ON media_asset TYPE option<datetime>;
+
+DEFINE INDEX idx_media_checksum ON media_asset FIELDS checksum_sha256;
+DEFINE INDEX idx_media_status ON media_asset FIELDS transcoding_status;
