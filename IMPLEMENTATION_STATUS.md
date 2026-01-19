@@ -236,26 +236,36 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 
 ---
 
-## 🔄 Phase 3: Full Endpoint Implementation (IN PROGRESS)
+## 🔄 Phase 3: Full Endpoint Implementation (IN PROGRESS - 60% Complete)
 
 ### Priority 1: Core Functionality
-- [ ] **Reports Service**
-  - [ ] Create report endpoint
-  - [ ] Get report by ID
+- [x] **Reports Service**
+  - [x] Create report endpoint with RLAC validation
+  - [x] Get report by ID with access control
   - [x] Search/filter reports (full-text search with BM25)
   - [x] Get report connections (graph queries)
-  - [ ] Update report status
-  - [ ] Evidence management
+  - [x] Update report status (reviewer/admin only)
+  - [x] Evidence management (upload, list)
+    - Evidence table with chain of custody
+    - Media asset storage with checksums
+    - Base64 upload for small files
+    - Placeholders for S3/MinIO integration
 
-- [ ] **User Management**
-  - [ ] User profile endpoints
-  - [ ] Role management
+- [x] **User Management**
+  - [x] User profile endpoints (GET/PATCH /api/v1/users/me)
+  - [x] Role management (admin user management)
+    - List users with filters
+    - Update user roles (admin only)
+    - Update user status (suspend/delete)
+    - Email uniqueness validation
   - [ ] MFA setup
 
-- [ ] **Audit Logging**
-  - [ ] System audit log service
-  - [ ] Per-request logging
-  - [ ] Sensitive action tracking
+- [x] **Audit Logging**
+  - [x] System audit log service (AuditService)
+  - [x] Audit log table with RLAC
+  - [x] Admin endpoints (list logs, filter, resource logs)
+  - [x] IP address hashing for privacy
+  - [ ] Integration into all sensitive endpoints
 
 ### Priority 2: Review Workflows
 - [ ] **Review Queue**
