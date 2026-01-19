@@ -7,139 +7,51 @@ pub use password::*;
 use crate::{
     db::Database,
     error::{ApiError, ApiResult},
-    models::{AuthResponse, Claims, LoginRequest, RegisterRequest, User, UserInfo, UserStatus},
+    models::{AuthResponse, LoginRequest, RegisterRequest, User, UserInfo},
 };
-use chrono::Utc;
-use uuid::Uuid;
+use serde_json::json;
 
 pub struct AuthService {
     db: Database,
-    jwt_secret: String,
-    jwt_expiry_minutes: i64,
-    refresh_token_expiry_days: i64,
 }
 
 impl AuthService {
-    pub fn new(
-        db: Database,
-        jwt_secret: String,
-        jwt_expiry_minutes: i64,
-        refresh_token_expiry_days: i64,
-    ) -> Self {
-        Self {
-            db,
-            jwt_secret,
-            jwt_expiry_minutes,
-            refresh_token_expiry_days,
-        }
+    pub fn new(db: Database) -> Self {
+        Self { db }
     }
 
+    /// Register a new user using SurrealDB's native SIGNUP
     pub async fn register(&self, req: RegisterRequest) -> ApiResult<AuthResponse> {
-        // Check if user already exists
-        let existing: Vec<User> = self
+        // Use SurrealDB's native SIGNUP through the user_scope
+        let token = self
             .db
-            .query(&format!(
-                "SELECT * FROM user WHERE email = '{}'",
-                req.email
-            ))
-            .await?;
+            .signup(req.username.clone(), req.email.clone(), req.password)
+            .await
+            .map_err(|e| {
+                tracing::error!("Signup failed: {}", e);
+                ApiError::Conflict("Email already registered or invalid data".to_string())
+            })?;
 
-        if !existing.is_empty() {
-            return Err(ApiError::Conflict("Email already registered".to_string()));
-        }
-
-        // Hash password
-        let password_hash = hash_password(&req.password)?;
-
-        // Create user
-        let user = User {
-            id: None,
-            username: req.username.clone(),
-            email: req.email.clone(),
-            password_hash,
-            roles: vec!["user".to_string()],
-            status: UserStatus::Active,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            last_login: None,
-            mfa_enabled: false,
-        };
-
-        let created: Vec<User> = self.db.create("user", user).await?;
-        let user = created
-            .into_iter()
-            .next()
-            .ok_or_else(|| ApiError::Internal(anyhow::anyhow!("Failed to create user")))?;
-
-        // Generate tokens
-        let user_id = user.id.clone().unwrap();
-        let access_token = generate_token(
-            &user_id,
-            &user.email,
-            &user.roles,
-            &self.jwt_secret,
-            self.jwt_expiry_minutes,
-        )?;
-        let refresh_token = Uuid::new_v4().to_string();
-
-        // Store refresh token (simplified - should be in separate table)
-        // TODO: Implement proper refresh token storage
-
-        Ok(AuthResponse {
-            access_token,
-            refresh_token,
-            user: UserInfo {
-                id: user_id,
-                username: user.username,
-                email: user.email,
-                roles: user.roles,
-            },
-        })
-    }
-
-    pub async fn login(&self, req: LoginRequest) -> ApiResult<AuthResponse> {
-        // Find user by email
+        // Fetch the created user info
         let users: Vec<User> = self
             .db
             .query(&format!("SELECT * FROM user WHERE email = '{}'", req.email))
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to fetch user after signup: {}", e);
+                ApiError::Internal(anyhow::anyhow!("Failed to fetch user data"))
+            })?;
 
         let user = users
             .into_iter()
             .next()
-            .ok_or_else(|| ApiError::Authentication("Invalid credentials".to_string()))?;
-
-        // Verify password
-        if !verify_password(&req.password, &user.password_hash)? {
-            return Err(ApiError::Authentication("Invalid credentials".to_string()));
-        }
-
-        // Check if user is active
-        if user.status != UserStatus::Active {
-            return Err(ApiError::Authentication(
-                "Account is not active".to_string(),
-            ));
-        }
-
-        // Generate tokens
-        let user_id = user.id.clone().unwrap();
-        let access_token = generate_token(
-            &user_id,
-            &user.email,
-            &user.roles,
-            &self.jwt_secret,
-            self.jwt_expiry_minutes,
-        )?;
-        let refresh_token = Uuid::new_v4().to_string();
-
-        // Update last login
-        // TODO: Implement last login update
+            .ok_or_else(|| ApiError::Internal(anyhow::anyhow!("User created but not found")))?;
 
         Ok(AuthResponse {
-            access_token,
-            refresh_token,
+            access_token: token.clone(),
+            refresh_token: token, // SurrealDB manages token refresh internally
             user: UserInfo {
-                id: user_id,
+                id: user.id.unwrap_or_default(),
                 username: user.username,
                 email: user.email,
                 roles: user.roles,
@@ -147,7 +59,61 @@ impl AuthService {
         })
     }
 
-    pub fn verify_token(&self, token: &str) -> ApiResult<Claims> {
-        verify_token(token, &self.jwt_secret)
+    /// Login user using SurrealDB's native SIGNIN
+    pub async fn login(&self, req: LoginRequest) -> ApiResult<AuthResponse> {
+        // Use SurrealDB's native SIGNIN through the user_scope
+        let token = self
+            .db
+            .signin(req.email.clone(), req.password)
+            .await
+            .map_err(|e| {
+                tracing::error!("Signin failed: {}", e);
+                ApiError::Authentication("Invalid credentials".to_string())
+            })?;
+
+        // Fetch user info
+        let users: Vec<User> = self
+            .db
+            .query(&format!("SELECT * FROM user WHERE email = '{}'", req.email))
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to fetch user after signin: {}", e);
+                ApiError::Internal(anyhow::anyhow!("Failed to fetch user data"))
+            })?;
+
+        let user = users
+            .into_iter()
+            .next()
+            .ok_or_else(|| ApiError::Authentication("User not found".to_string()))?;
+
+        // Update last login timestamp
+        let _: Vec<serde_json::Value> = self
+            .db
+            .query(&format!(
+                "UPDATE {} SET last_login = time::now()",
+                user.id.as_ref().unwrap_or(&"".to_string())
+            ))
+            .await
+            .unwrap_or_default();
+
+        Ok(AuthResponse {
+            access_token: token.clone(),
+            refresh_token: token, // SurrealDB manages token refresh internally
+            user: UserInfo {
+                id: user.id.unwrap_or_default(),
+                username: user.username,
+                email: user.email,
+                roles: user.roles,
+            },
+        })
+    }
+
+    /// Verify SurrealDB token (used by middleware)
+    pub async fn verify_token(&self, _token: &str) -> ApiResult<User> {
+        // TODO: Implement proper token verification with SurrealDB
+        // For now, return an error indicating auth is not fully implemented
+        Err(ApiError::Authentication(
+            "Token verification not yet fully implemented".to_string(),
+        ))
     }
 }

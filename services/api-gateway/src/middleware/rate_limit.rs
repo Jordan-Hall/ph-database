@@ -34,7 +34,7 @@ pub async fn rate_limit_middleware(
 
     match count {
         Some(c) if c >= limit => Err(StatusCode::TOO_MANY_REQUESTS),
-        Some(c) => {
+        Some(_c) => {
             // Increment counter
             let _: () = conn.incr(&key, 1).await.ok().unwrap_or(());
             Ok(next.run(req).await)

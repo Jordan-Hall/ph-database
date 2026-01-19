@@ -28,12 +28,8 @@ async fn register(
     payload.validate()
         .map_err(|e| ApiError::Validation(e.to_string()))?;
 
-    let auth_service = AuthService::new(
-        state.db.clone(),
-        state.config.jwt_secret.clone(),
-        state.config.jwt_expiry_minutes,
-        state.config.refresh_token_expiry_days,
-    );
+    // Use SurrealDB native authentication
+    let auth_service = AuthService::new(state.db.clone());
 
     let response = auth_service.register(payload).await?;
     Ok(Json(response))
@@ -47,12 +43,8 @@ async fn login(
     payload.validate()
         .map_err(|e| ApiError::Validation(e.to_string()))?;
 
-    let auth_service = AuthService::new(
-        state.db.clone(),
-        state.config.jwt_secret.clone(),
-        state.config.jwt_expiry_minutes,
-        state.config.refresh_token_expiry_days,
-    );
+    // Use SurrealDB native authentication
+    let auth_service = AuthService::new(state.db.clone());
 
     let response = auth_service.login(payload).await?;
     Ok(Json(response))

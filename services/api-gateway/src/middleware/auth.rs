@@ -5,14 +5,15 @@ use axum::{
     response::Response,
 };
 use crate::{
+    auth::AuthService,
     error::ApiError,
-    models::Claims,
+    models::User,
     AppState,
 };
 
 pub struct AuthLayer;
 
-/// Extract and verify JWT token from Authorization header
+/// Extract and verify SurrealDB token from Authorization header
 pub async fn auth_middleware(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -31,34 +32,25 @@ pub async fn auth_middleware(
         })
         .ok_or_else(|| ApiError::Authentication("Missing authorization token".to_string()))?;
 
-    // Verify token
-    let claims = jsonwebtoken::decode::<Claims>(
-        &token,
-        &jsonwebtoken::DecodingKey::from_secret(state.config.jwt_secret.as_bytes()),
-        &jsonwebtoken::Validation::default(),
-    )
-    .map_err(|e| ApiError::Authentication(format!("Invalid token: {}", e)))?
-    .claims;
+    // Verify SurrealDB token and get user
+    let auth_service = AuthService::new(state.db.clone());
+    let user = auth_service.verify_token(&token).await?;
 
-    // Add claims to request extensions
-    req.extensions_mut().insert(claims);
+    // Add user to request extensions (replaces Claims with full User)
+    req.extensions_mut().insert(user);
 
     Ok(next.run(req).await)
 }
 
-/// Check if user has required role
-pub fn require_role(required_role: &'static str) -> impl Fn(Request, Next) -> futures::future::BoxFuture<'static, Result<Response, StatusCode>> + Clone {
-    move |req: Request, next: Next| {
-        Box::pin(async move {
-            let claims = req.extensions().get::<Claims>().cloned();
-
-            match claims {
-                Some(claims) if claims.roles.contains(&required_role.to_string()) => {
-                    Ok(next.run(req).await)
-                }
-                Some(_) => Err(StatusCode::FORBIDDEN),
-                None => Err(StatusCode::UNAUTHORIZED),
-            }
-        })
+/// Check if user has required role (middleware function)
+/// TODO: Implement as a proper layer/middleware
+pub async fn require_role(
+    user: &User,
+    required_role: &str,
+) -> Result<(), StatusCode> {
+    if user.roles.contains(&required_role.to_string()) {
+        Ok(())
+    } else {
+        Err(StatusCode::FORBIDDEN)
     }
 }
