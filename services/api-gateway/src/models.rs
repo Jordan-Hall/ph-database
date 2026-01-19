@@ -336,6 +336,33 @@ pub struct EvidenceResponse {
 }
 
 // ============================================================================
+// AUDIT LOG MODELS
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditLog {
+    pub id: Option<String>,
+    pub actor_id: String,
+    pub actor_username: String,
+    pub actor_ip_hash: String,
+    pub action: String,
+    pub resource_type: String,
+    pub resource_id: String,
+    pub details: serde_json::Value,
+    pub metadata: Option<serde_json::Value>,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateAuditLogRequest {
+    pub action: String,
+    pub resource_type: String,
+    pub resource_id: String,
+    pub details: serde_json::Value,
+    pub metadata: Option<serde_json::Value>,
+}
+
+// ============================================================================
 // PAGINATION
 // ============================================================================
 

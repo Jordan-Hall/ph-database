@@ -536,3 +536,30 @@ DEFINE FIELD processed_at ON media_asset TYPE option<datetime>;
 
 DEFINE INDEX idx_media_checksum ON media_asset FIELDS checksum_sha256;
 DEFINE INDEX idx_media_status ON media_asset FIELDS transcoding_status;
+
+-- ============================================================================
+-- SYSTEM AUDIT LOG (with RLAC)
+-- ============================================================================
+
+DEFINE TABLE audit_log SCHEMAFULL
+    PERMISSIONS
+        FOR select WHERE
+            actor_id = $auth.id OR
+            $auth.roles CONTAINS "admin"
+        FOR create WHERE $auth.id != NONE
+        FOR delete WHERE $auth.roles CONTAINS "admin";
+
+DEFINE FIELD actor_id ON audit_log TYPE record<user>;
+DEFINE FIELD actor_username ON audit_log TYPE string;
+DEFINE FIELD actor_ip_hash ON audit_log TYPE string;
+DEFINE FIELD action ON audit_log TYPE string;  -- e.g., "user.update_roles", "report.status_change", "evidence.upload"
+DEFINE FIELD resource_type ON audit_log TYPE string;  -- e.g., "user", "report", "evidence"
+DEFINE FIELD resource_id ON audit_log TYPE string;
+DEFINE FIELD details ON audit_log TYPE object DEFAULT {};  -- JSON object with action-specific details
+DEFINE FIELD metadata ON audit_log TYPE option<object>;  -- Additional context
+DEFINE FIELD timestamp ON audit_log TYPE datetime DEFAULT time::now();
+
+DEFINE INDEX idx_audit_actor ON audit_log FIELDS actor_id, timestamp;
+DEFINE INDEX idx_audit_action ON audit_log FIELDS action, timestamp;
+DEFINE INDEX idx_audit_resource ON audit_log FIELDS resource_type, resource_id;
+DEFINE INDEX idx_audit_time ON audit_log FIELDS timestamp;

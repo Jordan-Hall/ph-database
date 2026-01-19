@@ -9,7 +9,8 @@ use validator::Validate;
 
 use crate::{
     error::{ApiError, ApiResult},
-    models::{User, UserStatus},
+    models::{AuditLog, User, UserStatus},
+    services::AuditService,
     AppState,
 };
 
@@ -20,6 +21,8 @@ pub fn router() -> Router<AppState> {
         .route("/users/:id/roles", patch(update_user_roles))
         .route("/users/:id/status", patch(update_user_status))
         .route("/users/:id", delete(delete_user))
+        .route("/audit-logs", get(list_audit_logs))
+        .route("/audit-logs/:resource_type/:resource_id", get(get_resource_audit_logs))
         .route("/tenants", get(list_tenants))
 }
 
@@ -304,6 +307,89 @@ async fn delete_user(
         "message": "User deleted successfully",
         "user_id": user_id
     })))
+}
+
+/// List audit logs with filters (admin only)
+async fn list_audit_logs(
+    State(state): State<AppState>,
+    Extension(admin): Extension<User>,
+    Query(params): Query<ListAuditLogsQuery>,
+) -> ApiResult<Json<AuditLogsResponse>> {
+    // Verify admin role
+    if !admin.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required".to_string(),
+        ));
+    }
+
+    let audit_service = AuditService::new(state.db.clone());
+    let logs = audit_service
+        .get_all_logs(params.action, params.resource_type, params.limit)
+        .await?;
+
+    let total = logs.len();
+
+    tracing::info!("Admin {} listed {} audit logs", admin.username, total);
+
+    Ok(Json(AuditLogsResponse { logs, total }))
+}
+
+/// Get audit logs for a specific resource (admin only)
+async fn get_resource_audit_logs(
+    State(state): State<AppState>,
+    Extension(admin): Extension<User>,
+    Path((resource_type, resource_id)): Path<(String, String)>,
+    Query(params): Query<ResourceAuditQuery>,
+) -> ApiResult<Json<AuditLogsResponse>> {
+    // Verify admin role
+    if !admin.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required".to_string(),
+        ));
+    }
+
+    let audit_service = AuditService::new(state.db.clone());
+    let logs = audit_service
+        .get_resource_logs(&resource_type, &resource_id, params.limit)
+        .await?;
+
+    let total = logs.len();
+
+    tracing::info!(
+        "Admin {} listed {} audit logs for {}:{}",
+        admin.username,
+        total,
+        resource_type,
+        resource_id
+    );
+
+    Ok(Json(AuditLogsResponse { logs, total }))
+}
+
+#[derive(Debug, Deserialize)]
+struct ListAuditLogsQuery {
+    #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
+    resource_type: Option<String>,
+    #[serde(default = "default_audit_limit")]
+    limit: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResourceAuditQuery {
+    #[serde(default = "default_audit_limit")]
+    limit: i32,
+}
+
+fn default_audit_limit() -> i32 {
+    100
+}
+
+#[derive(Debug, Serialize)]
+struct AuditLogsResponse {
+    logs: Vec<AuditLog>,
+    total: usize,
 }
 
 async fn list_tenants() -> &'static str {
