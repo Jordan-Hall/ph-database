@@ -235,21 +235,21 @@ async fn create_alert(
     })?;
 
     // Create audit log
-//     AuditService::log_action(
-//         &state.db,
-//         &user_id,
-//         "alert_created",
-//         "missing_person_alert",
-//         created_alert.id.as_deref(),
-//         Some(serde_json::json!({
-//             "alert_id": alert_id,
-//             "full_name": alert.full_name,
-//             "priority": alert.priority,
-//         })),
-//         None,
-//     )
-//     .await
-//     .ok();
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "alert_created",
+        "missing_person_alert",
+        created_alert.id.as_deref(),
+        Some(serde_json::json!({
+            "alert_id": alert_id,
+            "full_name": alert.full_name,
+            "priority": alert.priority,
+        })),
+        None,
+    )
+    .await
+    .ok();
 
     tracing::info!(
         "Alert created: {} by user {}",
@@ -330,21 +330,21 @@ async fn update_alert_status(
     })?;
 
     // Create audit log
-//     AuditService::log_action(
-//         &state.db,
-//         &user_id,
-//         "alert_status_updated",
-//         "missing_person_alert",
-//         Some(&alert_id),
-//         Some(serde_json::json!({
-//             "old_status": alert.status,
-//             "new_status": payload.status,
-//             "resolution_notes": payload.resolution_notes,
-//         })),
-//         None,
-//     )
-//     .await
-//     .ok();
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "alert_status_updated",
+        "missing_person_alert",
+        Some(&alert_id),
+        Some(serde_json::json!({
+            "old_status": alert.status,
+            "new_status": payload.status,
+            "resolution_notes": payload.resolution_notes,
+        })),
+        None,
+    )
+    .await
+    .ok();
 
     Ok(Json(updated_alert))
 }
@@ -397,19 +397,19 @@ async fn verify_alert(
     })?;
 
     // Create audit log
-//     AuditService::log_action(
-//         &state.db,
-//         &user_id,
-//         "alert_verified",
-//         "missing_person_alert",
-//         Some(&alert_id),
-//         Some(serde_json::json!({
-//             "verified_by": user_id,
-//         })),
-//         None,
-//     )
-//     .await
-//     .ok();
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "alert_verified",
+        "missing_person_alert",
+        Some(&alert_id),
+        Some(serde_json::json!({
+            "verified_by": user_id,
+        })),
+        None,
+    )
+    .await
+    .ok();
 
     tracing::info!("Alert {} verified by user {}", alert_id, user_id);
 
@@ -488,20 +488,20 @@ async fn resolve_alert(
     })?;
 
     // Create audit log
-//     AuditService::log_action(
-//         &state.db,
-//         &user_id,
-//         "alert_resolved",
-//         "missing_person_alert",
-//         Some(&alert_id),
-//         Some(serde_json::json!({
-//             "resolved_by": user_id,
-//             "resolution_notes": resolution_notes,
-//         })),
-//         None,
-//     )
-//     .await
-//     .ok();
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "alert_resolved",
+        "missing_person_alert",
+        Some(&alert_id),
+        Some(serde_json::json!({
+            "resolved_by": user_id,
+            "resolution_notes": resolution_notes,
+        })),
+        None,
+    )
+    .await
+    .ok();
 
     tracing::info!("Alert {} resolved by user {}", alert_id, user_id);
 

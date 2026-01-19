@@ -16,6 +16,61 @@ impl AuditService {
         Self { db }
     }
 
+    /// Static method for logging actions - simplified interface
+    /// This is a convenience method that doesn't require creating a User object
+    pub async fn log_action(
+        db: &Database,
+        user_id: &str,
+        action: &str,
+        resource_type: &str,
+        resource_id: Option<&str>,
+        metadata: Option<serde_json::Value>,
+        ip_address: Option<String>,
+    ) -> ApiResult<()> {
+        let now = Utc::now();
+
+        // Hash IP address for privacy
+        let ip_hash = if let Some(ip) = ip_address {
+            let mut hasher = Sha256::new();
+            hasher.update(ip.as_bytes());
+            format!("{:x}", hasher.finalize())
+        } else {
+            "unknown".to_string()
+        };
+
+        let audit_log = AuditLog {
+            id: None,
+            actor_id: if user_id.starts_with("user:") {
+                user_id.to_string()
+            } else {
+                format!("user:{}", user_id)
+            },
+            actor_username: user_id.to_string(), // Simplified - just use ID
+            actor_ip_hash: ip_hash,
+            action: action.to_string(),
+            resource_type: resource_type.to_string(),
+            resource_id: resource_id.unwrap_or("unknown").to_string(),
+            details: serde_json::json!({}),
+            metadata,
+            timestamp: now,
+        };
+
+        db.create("audit_log", audit_log).await.map_err(|e| {
+            tracing::error!("Failed to create audit log: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to create audit log"))
+        })?;
+
+        tracing::debug!(
+            "Audit log created: {} performed action '{}' on {}:{}",
+            user_id,
+            action,
+            resource_type,
+            resource_id.unwrap_or("unknown")
+        );
+
+        Ok(())
+    }
+
     /// Create an audit log entry
     pub async fn log(
         &self,

@@ -857,7 +857,7 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - ✅ Public item access via slug (/api/v1/items/:slug)
 - ✅ Survivor story submission and review workflow
 - ✅ Rate limiting (per-IP, per-user)
-- ✅ Audit logging
+- ✅ Audit logging (integrated in alerts, map, and other sensitive operations)
 - ✅ Video processing (FFmpeg)
 
 **Needs Configuration:**

@@ -239,21 +239,21 @@ async fn create_map_entry(
     })?;
 
     // Create audit log
-//     AuditService::log_action(
-//         &state.db,
-//         &user_id,
-//         "map_entry_created",
-//         "map_entry",
-//         created_entry.id.as_deref(),
-//         Some(serde_json::json!({
-//             "location": format!("{}, {}", payload.city, payload.street_name),
-//             "precision_class": payload.precision_class,
-//             "harm_risk": payload.harm_risk,
-//         })),
-//         None,
-//     )
-//     .await
-//     .ok();
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "map_entry_created",
+        "map_entry",
+        created_entry.id.as_deref(),
+        Some(serde_json::json!({
+            "location": format!("{}, {}", payload.city, payload.street_name),
+            "precision_class": payload.precision_class,
+            "harm_risk": payload.harm_risk,
+        })),
+        None,
+    )
+    .await
+    .ok();
 
     tracing::info!("Map entry created by user {}", user_id);
 
@@ -333,17 +333,17 @@ async fn update_map_entry(
     })?;
 
     // Create audit log
-//     AuditService::log_action(
-//         &state.db,
-//         &user_id,
-//         "map_entry_updated",
-//         "map_entry",
-//         Some(&entry_id),
-//         Some(payload),
-//         None,
-//     )
-//     .await
-//     .ok();
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "map_entry_updated",
+        "map_entry",
+        Some(&entry_id),
+        Some(payload),
+        None,
+    )
+    .await
+    .ok();
 
     Ok(Json(updated_entry))
 }
@@ -370,17 +370,17 @@ async fn delete_map_entry(
     })?;
 
     // Create audit log
-//     AuditService::log_action(
-//         &state.db,
-//         &user_id,
-//         "map_entry_deleted",
-//         "map_entry",
-//         Some(&entry_id),
-//         None,
-//         None,
-//     )
-//     .await
-//     .ok();
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "map_entry_deleted",
+        "map_entry",
+        Some(&entry_id),
+        None,
+        None,
+    )
+    .await
+    .ok();
 
     tracing::info!("Map entry {} deleted by admin {}", entry_id, user_id);
 
@@ -422,19 +422,19 @@ async fn verify_map_entry(
     })?;
 
     // Create audit log
-//     AuditService::log_action(
-//         &state.db,
-//         &user_id,
-//         "map_entry_verified",
-//         "map_entry",
-//         Some(&entry_id),
-//         Some(serde_json::json!({
-//             "verified_by": user_id,
-//         })),
-//         None,
-//     )
-//     .await
-//     .ok();
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "map_entry_verified",
+        "map_entry",
+        Some(&entry_id),
+        Some(serde_json::json!({
+            "verified_by": user_id,
+        })),
+        None,
+    )
+    .await
+    .ok();
 
     tracing::info!("Map entry {} verified by user {}", entry_id, user_id);
 
