@@ -702,7 +702,6 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - [ ] MFA setup for users
 - [ ] Escalation logic for reviews
 - [ ] Appeal process for takedowns
-- [ ] Survivor stories endpoint implementation
 
 ---
 
@@ -815,14 +814,13 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - Secrets management (Vault)
 
 ### Known Limitations
-- Token verification not fully implemented (TODO in verify_token)
-- No refresh token mechanism yet
 - No background job scheduler yet (except TTL via SurrealDB events)
 - No email/SMS notifications yet
 - OSM tiles not generated yet
 - Escalation logic for reviews not implemented
 - Appeal process for takedowns not implemented
-- Survivor stories endpoints not implemented (schema and models complete)
+- Rate limiting uses placeholder logic (Redis integration not connected)
+- Service layer refactoring incomplete (business logic in routes)
 
 ---
 
@@ -845,7 +843,7 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - ✅ Comprehensive documentation (deployment, security, operations)
 
 **Fully Working:**
-- ✅ Authentication (SurrealDB native with Argon2)
+- ✅ Authentication (SurrealDB native with Argon2, token refresh, logout)
 - ✅ Full-text search (BM25 ranking)
 - ✅ Face recognition (SurrealDB ML)
 - ✅ Graph queries (connection analysis)
@@ -853,7 +851,11 @@ This document tracks the implementation progress of the Predator Hunters Platfor
 - ✅ Publishing workflow with corrections
 - ✅ Missing person alerts with TTL
 - ✅ Map integration with privacy controls
-- ✅ Business API with validation
+- ✅ Business API with validation and usage tracking
+- ✅ Business tenant management (admin only)
+- ✅ API key management (creation, deletion, authentication)
+- ✅ Public item access via slug (/api/v1/items/:slug)
+- ✅ Survivor story submission and review workflow
 - ✅ Rate limiting (per-IP, per-user)
 - ✅ Audit logging
 - ✅ Video processing (FFmpeg)

@@ -392,6 +392,65 @@ struct AuditLogsResponse {
     total: usize,
 }
 
-async fn list_tenants() -> &'static str {
-    "TODO: Implement tenant management"
+/// List all business tenants (admin only)
+async fn list_tenants(
+    State(state): State<AppState>,
+    Extension(admin): Extension<User>,
+    Query(params): Query<ListTenantsQuery>,
+) -> ApiResult<Json<TenantsListResponse>> {
+    // Verify admin role
+    if !admin.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required".to_string(),
+        ));
+    }
+
+    // Build query
+    let query = if let Some(status) = params.status {
+        format!(
+            "SELECT * FROM business_tenant WHERE status = '{}' ORDER BY created_at DESC",
+            status
+        )
+    } else {
+        "SELECT * FROM business_tenant ORDER BY created_at DESC".to_string()
+    };
+
+    let mut result = state.db.client.query(&query).await.map_err(|e| {
+        tracing::error!("Failed to fetch tenants: {}", e);
+        ApiError::Internal(anyhow::anyhow!("Failed to fetch tenants"))
+    })?;
+
+    let tenants: Vec<serde_json::Value> = result.take(0).map_err(|e| {
+        tracing::error!("Failed to parse tenants: {}", e);
+        ApiError::Internal(anyhow::anyhow!("Failed to parse tenants"))
+    })?;
+
+    let total = tenants.len();
+
+    tracing::info!("Admin {} listed {} tenants", admin.username, total);
+
+    Ok(Json(TenantsListResponse {
+        tenants,
+        total,
+        page: params.page,
+        per_page: params.per_page,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct ListTenantsQuery {
+    #[serde(default)]
+    status: Option<String>,
+    #[serde(default = "default_page")]
+    page: u32,
+    #[serde(default = "default_per_page")]
+    per_page: u32,
+}
+
+#[derive(Debug, Serialize)]
+struct TenantsListResponse {
+    tenants: Vec<serde_json::Value>,
+    total: usize,
+    page: u32,
+    per_page: u32,
 }

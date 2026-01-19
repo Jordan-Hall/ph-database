@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     routing::{delete, get, post},
-    Json, Router,
+    Extension, Json, Router,
 };
 use chrono::{Duration, Utc};
 use sha2::{Digest, Sha256};
@@ -12,8 +12,8 @@ use crate::{
     error::{ApiError, ApiResult},
     models::{
         ApiKey, ApiKeyStatus, CheckType, ConfidenceLevel, CreateApiKeyRequest,
-        CreateApiKeyResponse, CreateTenantRequest, MatchSummary, TenantStatus, ValidationRequest,
-        ValidationResponse,
+        CreateApiKeyResponse, CreateTenantRequest, MatchSummary, TenantStatus, User,
+        ValidationRequest, ValidationResponse,
     },
     AppState,
 };
@@ -259,20 +259,107 @@ async fn search_enhanced(
 }
 
 /// Get API usage statistics for authenticated tenant
-async fn get_usage(State(_state): State<AppState>) -> ApiResult<Json<serde_json::Value>> {
-    // TODO: Implement usage tracking from Redis or audit logs
+async fn get_usage(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<serde_json::Value>> {
+    // Extract and validate API key
+    let api_key = headers
+        .get("X-API-Key")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| {
+            ApiError::Authorization("Missing or invalid X-API-Key header".to_string())
+        })?;
+
+    // Hash the API key to look it up
+    let mut hasher = Sha256::new();
+    hasher.update(api_key.as_bytes());
+    let key_hash = format!("{:x}", hasher.finalize());
+
+    // Look up API key
+    let query = format!(
+        "SELECT * FROM api_key WHERE key_hash = '{}' AND status = 'active'",
+        key_hash
+    );
+
+    let keys: Vec<ApiKey> = state.db.query(&query).await.map_err(|e| {
+        tracing::error!("Failed to lookup API key: {}", e);
+        ApiError::Authorization("Invalid API key".to_string())
+    })?;
+
+    let api_key_record = keys.into_iter().next().ok_or_else(|| {
+        ApiError::Authorization("Invalid or inactive API key".to_string())
+    })?;
+
+    let tenant_id = api_key_record.tenant_id.clone();
+
+    // Get usage statistics from audit logs
+    // Count validation requests in the last 30 days
+    let usage_query = format!(
+        "SELECT count() as total_requests FROM audit_log
+         WHERE action = 'business.validate'
+         AND metadata.tenant_id = '{}'
+         AND created_at > time::now() - 30d
+         GROUP ALL",
+        tenant_id
+    );
+
+    let usage_result: Vec<serde_json::Value> = state
+        .db
+        .query(&usage_query)
+        .await
+        .unwrap_or_default();
+
+    let total_requests = usage_result
+        .first()
+        .and_then(|r| r.get("total_requests"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
+    // Get recent usage
+    let recent_query = format!(
+        "SELECT count() as today_requests FROM audit_log
+         WHERE action = 'business.validate'
+         AND metadata.tenant_id = '{}'
+         AND created_at > time::now() - 1d
+         GROUP ALL",
+        tenant_id
+    );
+
+    let recent_result: Vec<serde_json::Value> = state
+        .db
+        .query(&recent_query)
+        .await
+        .unwrap_or_default();
+
+    let today_requests = recent_result
+        .first()
+        .and_then(|r| r.get("today_requests"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
     Ok(Json(serde_json::json!({
-        "message": "Usage statistics endpoint",
-        "status": "not_implemented"
+        "tenant_id": tenant_id,
+        "period": "last_30_days",
+        "total_requests": total_requests,
+        "today_requests": today_requests,
+        "rate_limit_per_hour": api_key_record.rate_limit_per_hour,
+        "last_used_at": api_key_record.last_used_at
     })))
 }
 
 /// Create new API key for a tenant (admin only)
 async fn create_key(
     State(state): State<AppState>,
+    Extension(admin): Extension<User>,
     Json(payload): Json<CreateApiKeyRequest>,
 ) -> ApiResult<Json<CreateApiKeyResponse>> {
-    // TODO: Check admin authentication
+    // Verify admin role
+    if !admin.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required".to_string(),
+        ));
+    }
 
     // Generate random API key
     let api_key = format!(
@@ -329,9 +416,15 @@ async fn create_key(
 /// Delete an API key (admin or tenant owner)
 async fn delete_key(
     State(state): State<AppState>,
+    Extension(admin): Extension<User>,
     Path(key_id): Path<String>,
 ) -> ApiResult<StatusCode> {
-    // TODO: Check admin or tenant owner authentication
+    // Verify admin role (tenant owner check would require looking up the key's tenant)
+    if !admin.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required".to_string(),
+        ));
+    }
 
     let query = format!("UPDATE {} SET status = 'suspended'", key_id);
 
@@ -348,9 +441,15 @@ async fn delete_key(
 /// Create new business tenant (admin only)
 async fn create_tenant(
     State(state): State<AppState>,
+    Extension(admin): Extension<User>,
     Json(payload): Json<CreateTenantRequest>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    // TODO: Check admin authentication
+    // Verify admin role
+    if !admin.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required".to_string(),
+        ));
+    }
 
     // Validate request
     payload
