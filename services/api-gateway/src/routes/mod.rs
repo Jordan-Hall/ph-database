@@ -10,3 +10,4 @@ pub mod face_search;
 pub mod publish;
 pub mod business;
 pub mod admin;
+pub mod users;
