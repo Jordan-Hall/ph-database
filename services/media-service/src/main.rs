@@ -34,6 +34,12 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Initialize Prometheus metrics exporter
+    let metrics_handle = metrics_exporter_prometheus::PrometheusBuilder::new()
+        .install_recorder()
+        .expect("Failed to install Prometheus recorder");
+    tracing::info!("Metrics exporter initialized");
+
     // Load configuration
     let config = Config::from_env()?;
     tracing::info!("Media Service starting on port {}", config.port);
@@ -61,6 +67,9 @@ async fn main() -> anyhow::Result<()> {
     // Build router
     let app = Router::new()
         .route("/health", get(health_check))
+        .route("/metrics", get(move || async move {
+            metrics_handle.render()
+        }))
         .route("/upload", post(upload_video))
         .route("/media/:id", get(get_media))
         .route("/media/:id/thumbnail", get(get_thumbnail))

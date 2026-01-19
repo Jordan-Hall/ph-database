@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: 'Predator Hunters Dashboards'
+    orgId: 1
+    folder: 'PH Database'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true

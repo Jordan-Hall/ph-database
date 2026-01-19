@@ -125,21 +125,30 @@ services:
       - "8081:8081"
     environment:
       - RUST_LOG=info
-      - DATABASE_URL=ws://surrealdb:8000
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=${MINIO_ROOT_USER:-admin}
-      - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-adminpassword}
-      - S3_BUCKET_EVIDENCE=evidence
-      - S3_BUCKET_MEDIA=media
-      - MAX_UPLOAD_SIZE=524288000  # 500MB
+      - MEDIA_SERVICE_PORT=8081
+      - UPLOAD_DIR=/tmp/uploads
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-admin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-adminpassword}
+      - MINIO_BUCKET=media
+      - MINIO_REGION=us-east-1
+      - MAX_VIDEO_SIZE_MB=500
+      - FFMPEG_PATH=/usr/bin/ffmpeg
     volumes:
-      - /tmp/ph-uploads:/tmp/uploads
+      - media-uploads:/tmp/uploads
     depends_on:
-      - surrealdb
-      - minio
+      minio:
+        condition: service_healthy
+      minio-client:
+        condition: service_completed_successfully
     networks:
       - ph-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
 
   # ===========================================================================
   # AI SERVICE (Face Recognition)
@@ -262,6 +271,57 @@ services:
       - ph-network
     restart: unless-stopped
 
+  # ===========================================================================
+  # MONITORING & OBSERVABILITY
+  # ===========================================================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ph-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ph-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - ph-network
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    container_name: ph-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    networks:
+      - ph-network
+    restart: unless-stopped
+
 networks:
   ph-network:
     driver: bridge
@@ -271,3 +331,7 @@ volumes:
   redis-data:
   minio-data:
   nominatim-data:
+  media-uploads:
+  prometheus-data:
+  grafana-data:
+  loki-data:

@@ -1,0 +1,79 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # API Gateway
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8080']
+        labels:
+          service: 'api-gateway'
+          environment: 'production'
+
+  # Media Service
+  - job_name: 'media-service'
+    static_configs:
+      - targets: ['media-service:8081']
+        labels:
+          service: 'media-service'
+          environment: 'production'
+
+  # AI Service
+  - job_name: 'ai-service'
+    static_configs:
+      - targets: ['ai-service:8082']
+        labels:
+          service: 'ai-service'
+          environment: 'production'
+
+  # Alerts Service
+  - job_name: 'alerts-service'
+    static_configs:
+      - targets: ['alerts-service:8083']
+        labels:
+          service: 'alerts-service'
+          environment: 'production'
+
+  # Moderation Service
+  - job_name: 'moderation-service'
+    static_configs:
+      - targets: ['moderation-service:8084']
+        labels:
+          service: 'moderation-service'
+          environment: 'production'
+
+  # SurrealDB
+  - job_name: 'surrealdb'
+    static_configs:
+      - targets: ['surrealdb:8000']
+        labels:
+          service: 'surrealdb'
+          environment: 'production'
+
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+        labels:
+          service: 'redis'
+          environment: 'production'
+    metrics_path: /metrics
+
+  # MinIO
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+        labels:
+          service: 'minio'
+          environment: 'production'
+    metrics_path: /minio/v2/metrics/cluster
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          environment: 'production'

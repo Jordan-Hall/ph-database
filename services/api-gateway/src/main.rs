@@ -36,6 +36,12 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Initialize Prometheus metrics exporter
+    let metrics_handle = metrics_exporter_prometheus::PrometheusBuilder::new()
+        .install_recorder()
+        .expect("Failed to install Prometheus recorder");
+    tracing::info!("Metrics exporter initialized");
+
     // Load configuration
     let config = Config::from_env()?;
     tracing::info!("Configuration loaded");
@@ -81,6 +87,10 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         // Health check
         .route("/health", get(routes::health::health_check))
+        // Metrics endpoint for Prometheus
+        .route("/metrics", get(move || async move {
+            metrics_handle.render()
+        }))
 
         // Public routes (no auth required)
         .nest("/api/v1/auth", routes::auth::router())

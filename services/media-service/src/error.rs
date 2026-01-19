@@ -32,20 +32,12 @@ struct ErrorResponse {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
-            AppError::InvalidInput(msg) => (StatusCode::BAD_REQUEST, msg),
-            AppError::StorageError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            AppError::ProcessingError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-        };
-
-        let error_type = match self {
-            AppError::InvalidInput(_) => "InvalidInput",
-            AppError::StorageError(_) => "StorageError",
-            AppError::ProcessingError(_) => "ProcessingError",
-            AppError::NotFound(_) => "NotFound",
-            AppError::Internal(_) => "InternalError",
+        let (status, error_type, message) = match self {
+            AppError::InvalidInput(msg) => (StatusCode::BAD_REQUEST, "InvalidInput", msg),
+            AppError::StorageError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, "StorageError", msg),
+            AppError::ProcessingError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, "ProcessingError", msg),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, "NotFound", msg),
+            AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", msg),
         };
 
         let body = Json(ErrorResponse {
