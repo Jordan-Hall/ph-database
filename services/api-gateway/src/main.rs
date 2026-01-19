@@ -70,7 +70,6 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1/publish", routes::publish::router())
         .nest("/api/v1/alerts", routes::alerts::protected_router())
         .nest("/api/v1/map", routes::map::protected_router())
-        .nest("/api/v1/stories", routes::stories::protected_router())
         .nest("/api/v1/biz", routes::business::router())
         .nest("/api/v1/admin", routes::admin::router())
         .layer(axum_middleware::from_fn_with_state(

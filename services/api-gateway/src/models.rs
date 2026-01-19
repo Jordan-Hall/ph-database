@@ -357,6 +357,135 @@ fn default_story_limit() -> u32 {
 }
 
 // ============================================================================
+// BUSINESS API MODELS
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BusinessTenant {
+    pub id: Option<String>,
+    pub name: String,
+    pub contact_email: String,
+    pub industry: String,
+    pub purpose_statement: String,
+    pub status: TenantStatus,
+    pub approved_by: Option<String>,
+    pub approved_at: Option<DateTime<Utc>>,
+    pub rate_limit_tier: RateLimitTier,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TenantStatus {
+    Pending,
+    Approved,
+    Suspended,
+    Rejected,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum RateLimitTier {
+    Basic,      // 100/hour
+    Standard,   // 500/hour
+    Premium,    // 2000/hour
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiKey {
+    pub id: Option<String>,
+    pub tenant_id: String,
+    pub key_hash: String,
+    pub key_prefix: String,
+    pub scopes: Vec<String>,
+    pub rate_limit_per_hour: u32,
+    pub status: ApiKeyStatus,
+    pub last_used_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ApiKeyStatus {
+    Active,
+    Suspended,
+    Expired,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct ValidationRequest {
+    #[validate(length(min = 2, max = 100))]
+    pub full_name: String,
+    pub date_of_birth: Option<String>,
+    #[validate(length(min = 5, max = 20))]
+    pub postcode: Option<String>,
+    pub check_type: CheckType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum CheckType {
+    Basic,      // Just name
+    Standard,   // Name + DOB
+    Enhanced,   // Name + DOB + postcode
+}
+
+#[derive(Debug, Serialize)]
+pub struct ValidationResponse {
+    pub request_id: String,
+    pub matched: bool,
+    pub confidence: ConfidenceLevel,
+    pub matches: Vec<MatchSummary>,
+    pub disclaimer: String,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ConfidenceLevel {
+    High,     // 95%+ match
+    Medium,   // 80-95% match
+    Low,      // 60-80% match
+    None,     // <60% match
+}
+
+#[derive(Debug, Serialize)]
+pub struct MatchSummary {
+    pub conviction_id: String,
+    pub match_score: f32,
+    pub offense_category: String,
+    pub conviction_year: Option<u32>,
+    pub requires_manual_review: bool,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateTenantRequest {
+    #[validate(length(min = 3, max = 200))]
+    pub name: String,
+    #[validate(email)]
+    pub contact_email: String,
+    #[validate(length(min = 3, max = 100))]
+    pub industry: String,
+    #[validate(length(min = 50, max = 1000))]
+    pub purpose_statement: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateApiKeyRequest {
+    pub tenant_id: String,
+    pub scopes: Vec<String>,
+    pub expires_days: Option<u32>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateApiKeyResponse {
+    pub api_key: String,  // Plain text, shown only once
+    pub key_prefix: String,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+// ============================================================================
 // FACE SEARCH MODELS
 // ============================================================================
 
