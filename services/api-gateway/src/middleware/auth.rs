@@ -33,7 +33,7 @@ pub async fn auth_middleware(
         .ok_or_else(|| ApiError::Authentication("Missing authorization token".to_string()))?;
 
     // Verify SurrealDB token and get user
-    let auth_service = AuthService::new(state.db.clone());
+    let auth_service = AuthService::new(state.db.clone(), state.config.database_url.clone());
     let user = auth_service.verify_token(&token).await?;
 
     // Add user to request extensions (replaces Claims with full User)

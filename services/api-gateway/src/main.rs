@@ -8,6 +8,7 @@ mod routes;
 mod services;
 
 use axum::{
+    middleware as axum_middleware,
     routing::{get, post},
     Router,
 };
@@ -21,7 +22,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::{
     config::Config,
     db::Database,
-    middleware::auth::AuthLayer,
+    middleware::auth::auth_middleware,
 };
 
 #[tokio::main]
@@ -61,6 +62,18 @@ async fn main() -> anyhow::Result<()> {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    // Build protected routes that require authentication
+    let protected_routes = Router::new()
+        .nest("/api/v1/review", routes::review::router())
+        .nest("/api/v1/face-search", routes::face_search::router())
+        .nest("/api/v1/publish", routes::publish::router())
+        .nest("/api/v1/biz", routes::business::router())
+        .nest("/api/v1/admin", routes::admin::router())
+        .layer(axum_middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ));
+
     // Build our application router
     let app = Router::new()
         // Health check
@@ -74,18 +87,10 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1/stories", routes::stories::public_router())
         .nest("/api/v1/items", routes::items::public_router())
 
-        // Authenticated routes
-        .nest("/api/v1/review", routes::review::router())
-        .nest("/api/v1/face-search", routes::face_search::router())
-        .nest("/api/v1/publish", routes::publish::router())
+        // Merge protected routes
+        .merge(protected_routes)
 
-        // Business API
-        .nest("/api/v1/biz", routes::business::router())
-
-        // Admin routes
-        .nest("/api/v1/admin", routes::admin::router())
-
-        // Middleware
+        // Global middleware
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(app_state);

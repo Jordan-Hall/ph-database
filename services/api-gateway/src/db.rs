@@ -70,11 +70,30 @@ impl Database {
         token.ok_or_else(|| surrealdb::Error::Api(surrealdb::error::Api::Query("Signin failed".to_string())))
     }
 
-    /// Verify and decode a SurrealDB token
-    pub async fn verify_token(&self, _token: &str) -> Result<Value, surrealdb::Error> {
-        // TODO: Implement proper token verification with SurrealDB
-        // For now, return a placeholder
-        Ok(Value::None)
+    /// Verify and decode a SurrealDB token by creating a temporary connection
+    /// Returns the authenticated user data from the token
+    pub async fn verify_token(&self, token: &str, db_url: &str) -> Result<serde_json::Value, surrealdb::Error> {
+        // Create a temporary client to verify the token
+        let temp_client = Surreal::new::<Ws>(db_url).await?;
+
+        // Authenticate using the provided token
+        temp_client.authenticate(token).await?;
+
+        // Use the same namespace and database
+        temp_client.use_ns("prod").use_db("main").await?;
+
+        // Query the authenticated user context
+        let mut result = temp_client
+            .query("SELECT * FROM $auth")
+            .await?;
+
+        let user_data: Option<serde_json::Value> = result.take(0)?;
+
+        user_data.ok_or_else(|| {
+            surrealdb::Error::Api(surrealdb::error::Api::Query(
+                "Token verification failed: no auth context".to_string()
+            ))
+        })
     }
 
     /// Execute a query with parameters

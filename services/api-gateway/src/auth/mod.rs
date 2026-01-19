@@ -13,11 +13,12 @@ use serde_json::json;
 
 pub struct AuthService {
     db: Database,
+    db_url: String,
 }
 
 impl AuthService {
-    pub fn new(db: Database) -> Self {
-        Self { db }
+    pub fn new(db: Database, db_url: String) -> Self {
+        Self { db, db_url }
     }
 
     /// Register a new user using SurrealDB's native SIGNUP
@@ -109,11 +110,23 @@ impl AuthService {
     }
 
     /// Verify SurrealDB token (used by middleware)
-    pub async fn verify_token(&self, _token: &str) -> ApiResult<User> {
-        // TODO: Implement proper token verification with SurrealDB
-        // For now, return an error indicating auth is not fully implemented
-        Err(ApiError::Authentication(
-            "Token verification not yet fully implemented".to_string(),
-        ))
+    pub async fn verify_token(&self, token: &str) -> ApiResult<User> {
+        // Verify token using SurrealDB's native authentication
+        let user_data = self
+            .db
+            .verify_token(token, &self.db_url)
+            .await
+            .map_err(|e| {
+                tracing::error!("Token verification failed: {}", e);
+                ApiError::Authentication("Invalid or expired token".to_string())
+            })?;
+
+        // Parse user data from the authentication context
+        let user: User = serde_json::from_value(user_data).map_err(|e| {
+            tracing::error!("Failed to parse user from token data: {}", e);
+            ApiError::Authentication("Invalid token data".to_string())
+        })?;
+
+        Ok(user)
     }
 }

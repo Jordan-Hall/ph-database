@@ -29,7 +29,7 @@ async fn register(
         .map_err(|e| ApiError::Validation(e.to_string()))?;
 
     // Use SurrealDB native authentication
-    let auth_service = AuthService::new(state.db.clone());
+    let auth_service = AuthService::new(state.db.clone(), state.config.database_url.clone());
 
     let response = auth_service.register(payload).await?;
     Ok(Json(response))
@@ -44,7 +44,7 @@ async fn login(
         .map_err(|e| ApiError::Validation(e.to_string()))?;
 
     // Use SurrealDB native authentication
-    let auth_service = AuthService::new(state.db.clone());
+    let auth_service = AuthService::new(state.db.clone(), state.config.database_url.clone());
 
     let response = auth_service.login(payload).await?;
     Ok(Json(response))
