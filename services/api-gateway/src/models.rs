@@ -363,6 +363,86 @@ pub struct CreateAuditLogRequest {
 }
 
 // ============================================================================
+// PUBLISHABLE ITEM MODELS
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PublishableItem {
+    pub id: Option<String>,
+    pub slug: String,
+    pub title: String,
+    pub content_type: String,
+    pub content: String,
+    pub summary: Option<String>,
+    pub source_report_id: Option<String>,
+    pub status: PublishStatus,
+    pub visibility_tier: VisibilityTier,
+    pub published_at: Option<DateTime<Utc>>,
+    pub published_by: Option<String>,
+    pub corrections: Vec<serde_json::Value>,
+    pub takedown_reason: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PublishStatus {
+    Draft,
+    Published,
+    Withdrawn,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct PublishRequest {
+    #[validate(length(min = 3, max = 100))]
+    pub slug: String,
+    #[validate(length(min = 10, max = 200))]
+    pub title: String,
+    pub content_type: String,
+    #[validate(length(min = 100))]
+    pub content: String,
+    #[validate(length(max = 500))]
+    pub summary: Option<String>,
+    pub visibility_tier: VisibilityTier,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PublishResponse {
+    pub item: PublishableItem,
+    pub public_url: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CorrectionRequest {
+    pub correction_type: String,
+    #[validate(length(min = 10, max = 1000))]
+    pub reason: String,
+    pub old_value: Option<String>,
+    pub new_value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CorrectionLog {
+    pub id: Option<String>,
+    pub item_id: String,
+    pub correction_type: String,
+    pub old_value: Option<String>,
+    pub new_value: Option<String>,
+    pub reason: String,
+    pub corrected_by: String,
+    pub corrected_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct TakedownRequest {
+    #[validate(length(min = 20, max = 2000))]
+    pub reason: String,
+    pub requester_email: Option<String>,
+    pub evidence_description: Option<String>,
+}
+
+// ============================================================================
 // PAGINATION
 // ============================================================================
 

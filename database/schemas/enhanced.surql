@@ -563,3 +563,80 @@ DEFINE INDEX idx_audit_actor ON audit_log FIELDS actor_id, timestamp;
 DEFINE INDEX idx_audit_action ON audit_log FIELDS action, timestamp;
 DEFINE INDEX idx_audit_resource ON audit_log FIELDS resource_type, resource_id;
 DEFINE INDEX idx_audit_time ON audit_log FIELDS timestamp;
+
+-- ============================================================================
+-- PUBLISHABLE ITEMS (with RLAC)
+-- ============================================================================
+
+DEFINE TABLE publishable_item SCHEMAFULL
+    PERMISSIONS
+        FOR select WHERE
+            status = "published" AND visibility_tier = "public" OR
+            $auth.roles CONTAINS "reviewer" OR
+            $auth.roles CONTAINS "admin"
+        FOR create WHERE $auth.roles CONTAINS "reviewer"
+        FOR update WHERE $auth.roles CONTAINS "reviewer"
+        FOR delete WHERE $auth.roles CONTAINS "admin";
+
+DEFINE FIELD slug ON publishable_item TYPE string;
+DEFINE FIELD title ON publishable_item TYPE string;
+DEFINE FIELD content_type ON publishable_item TYPE string;  -- report, story, conviction_profile
+DEFINE FIELD content ON publishable_item TYPE string;
+DEFINE FIELD summary ON publishable_item TYPE option<string>;
+DEFINE FIELD source_report_id ON publishable_item TYPE option<record<report>>;
+DEFINE FIELD status ON publishable_item TYPE string DEFAULT "draft";  -- draft, published, withdrawn
+DEFINE FIELD visibility_tier ON publishable_item TYPE string DEFAULT "public";
+DEFINE FIELD published_at ON publishable_item TYPE option<datetime>;
+DEFINE FIELD published_by ON publishable_item TYPE option<record<user>>;
+DEFINE FIELD corrections ON publishable_item TYPE array DEFAULT [];
+DEFINE FIELD takedown_reason ON publishable_item TYPE option<string>;
+DEFINE FIELD created_at ON publishable_item TYPE datetime DEFAULT time::now();
+DEFINE FIELD updated_at ON publishable_item TYPE datetime DEFAULT time::now();
+
+DEFINE INDEX idx_item_slug ON publishable_item FIELDS slug UNIQUE;
+DEFINE INDEX idx_item_status ON publishable_item FIELDS status, published_at;
+
+-- ============================================================================
+-- CORRECTIONS & TAKEDOWNS (with RLAC)
+-- ============================================================================
+
+DEFINE TABLE correction_log SCHEMAFULL
+    PERMISSIONS
+        FOR select WHERE $auth.roles CONTAINS "reviewer" OR $auth.roles CONTAINS "admin"
+        FOR create WHERE $auth.roles CONTAINS "reviewer"
+        FOR delete WHERE $auth.roles CONTAINS "admin";
+
+DEFINE FIELD item_id ON correction_log TYPE record<publishable_item>;
+DEFINE FIELD correction_type ON correction_log TYPE string;  -- factual, clarification, retraction
+DEFINE FIELD old_value ON correction_log TYPE option<string>;
+DEFINE FIELD new_value ON correction_log TYPE option<string>;
+DEFINE FIELD reason ON correction_log TYPE string;
+DEFINE FIELD corrected_by ON correction_log TYPE record<user>;
+DEFINE FIELD corrected_at ON correction_log TYPE datetime DEFAULT time::now();
+
+DEFINE INDEX idx_correction_item ON correction_log FIELDS item_id, corrected_at;
+
+DEFINE TABLE takedown_request SCHEMAFULL
+    PERMISSIONS
+        FOR select WHERE
+            requested_by = $auth.id OR
+            $auth.roles CONTAINS "reviewer" OR
+            $auth.roles CONTAINS "admin"
+        FOR create WHERE $auth.id != NONE
+        FOR update WHERE $auth.roles CONTAINS "reviewer"
+        FOR delete WHERE $auth.roles CONTAINS "admin";
+
+DEFINE FIELD item_id ON takedown_request TYPE record<publishable_item>;
+DEFINE FIELD requested_by ON takedown_request TYPE option<record<user>>;
+DEFINE FIELD requester_email ON takedown_request TYPE option<string>;
+DEFINE FIELD reason ON takedown_request TYPE string;
+DEFINE FIELD evidence_description ON takedown_request TYPE option<string>;
+DEFINE FIELD status ON takedown_request TYPE string DEFAULT "pending";  -- pending, approved, rejected
+DEFINE FIELD reviewed_by ON takedown_request TYPE option<record<user>>;
+DEFINE FIELD reviewed_at ON takedown_request TYPE option<datetime>;
+DEFINE FIELD decision ON takedown_request TYPE option<string>;
+DEFINE FIELD decision_notes ON takedown_request TYPE option<string>;
+DEFINE FIELD created_at ON takedown_request TYPE datetime DEFAULT time::now();
+
+DEFINE INDEX idx_takedown_status ON takedown_request FIELDS status, created_at;
+DEFINE INDEX idx_takedown_item ON takedown_request FIELDS item_id;

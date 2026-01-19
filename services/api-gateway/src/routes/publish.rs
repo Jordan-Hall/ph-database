@@ -1,10 +1,443 @@
-use axum::{routing::post, Router};
-use crate::AppState;
+use axum::{
+    extract::{Path, State},
+    routing::{get, patch, post},
+    Extension, Json, Router,
+};
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+use crate::{
+    error::{ApiError, ApiResult},
+    models::{
+        CorrectionLog, CorrectionRequest, PublishRequest, PublishResponse, PublishStatus,
+        PublishableItem, Report, ReportStatus, TakedownRequest as TakedownRequestModel, User,
+    },
+    services::AuditService,
+    AppState,
+};
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/:item_id", post(publish_item))
+    Router::new()
+        .route("/report/:report_id", post(publish_report))
+        .route("/item/:item_id/withdraw", patch(withdraw_item))
+        .route("/item/:item_id/correct", post(add_correction))
+        .route("/item/:item_id/takedown", post(request_takedown))
+        .route("/item/:slug", get(get_published_item))
 }
 
-async fn publish_item() -> &'static str {
-    "TODO: Implement publish endpoint"
+/// Publish an approved report as a public item (reviewer/admin only)
+async fn publish_report(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    Path(report_id): Path<String>,
+    Json(payload): Json<PublishRequest>,
+) -> ApiResult<Json<PublishResponse>> {
+    // Verify reviewer or admin role
+    if !user.roles.contains(&"reviewer".to_string())
+        && !user.roles.contains(&"admin".to_string())
+    {
+        return Err(ApiError::Authorization(
+            "Reviewer or admin role required".to_string(),
+        ));
+    }
+
+    // Validate request
+    payload
+        .validate()
+        .map_err(|e| ApiError::Validation(e.to_string()))?;
+
+    let user_id = user.id.clone().unwrap_or_else(|| "unknown".to_string());
+
+    // Verify report exists and is approved
+    let reports: Vec<Report> = state
+        .db
+        .select(&format!("report:{}", report_id))
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to fetch report: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to fetch report"))
+        })?;
+
+    let report = reports
+        .into_iter()
+        .next()
+        .ok_or_else(|| ApiError::NotFound("Report not found or access denied".to_string()))?;
+
+    if report.status != ReportStatus::Approved {
+        return Err(ApiError::Validation(
+            "Only approved reports can be published".to_string(),
+        ));
+    }
+
+    let now = Utc::now();
+
+    // Create publishable item
+    let item = PublishableItem {
+        id: None,
+        slug: payload.slug.clone(),
+        title: payload.title,
+        content_type: payload.content_type,
+        content: payload.content,
+        summary: payload.summary,
+        source_report_id: Some(format!("report:{}", report_id)),
+        status: PublishStatus::Published,
+        visibility_tier: payload.visibility_tier,
+        published_at: Some(now),
+        published_by: Some(format!("user:{}", user_id)),
+        corrections: vec![],
+        takedown_reason: None,
+        created_at: now,
+        updated_at: now,
+    };
+
+    let created: Option<PublishableItem> =
+        state.db.create("publishable_item", item).await.map_err(|e| {
+            tracing::error!("Failed to create publishable item: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to create publishable item"))
+        })?;
+
+    let item = created.ok_or_else(|| {
+        ApiError::Internal(anyhow::anyhow!("Publishable item created but not returned"))
+    })?;
+
+    // Create audit log
+    let audit_service = AuditService::new(state.db.clone());
+    audit_service
+        .log(
+            &user,
+            "item.publish".to_string(),
+            "publishable_item".to_string(),
+            item.id.clone().unwrap_or_else(|| "unknown".to_string()),
+            serde_json::json!({
+                "source_report_id": report_id,
+                "slug": payload.slug,
+                "visibility_tier": item.visibility_tier
+            }),
+            None,
+            None,
+        )
+        .await?;
+
+    let public_url = format!("/public/{}", payload.slug);
+
+    tracing::info!(
+        "Reviewer {} published report {} as item with slug '{}'",
+        user.username,
+        report_id,
+        payload.slug
+    );
+
+    Ok(Json(PublishResponse { item, public_url }))
+}
+
+/// Withdraw a published item (reviewer/admin only)
+async fn withdraw_item(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    Path(item_id): Path<String>,
+    Json(payload): Json<WithdrawRequest>,
+) -> ApiResult<Json<serde_json::Value>> {
+    // Verify reviewer or admin role
+    if !user.roles.contains(&"reviewer".to_string())
+        && !user.roles.contains(&"admin".to_string())
+    {
+        return Err(ApiError::Authorization(
+            "Reviewer or admin role required".to_string(),
+        ));
+    }
+
+    // Validate request
+    payload
+        .validate()
+        .map_err(|e| ApiError::Validation(e.to_string()))?;
+
+    // Update item status to withdrawn
+    let update_query = format!(
+        "UPDATE publishable_item:{} SET status = 'withdrawn', takedown_reason = $reason, updated_at = time::now() RETURN AFTER",
+        item_id
+    );
+
+    let updated: Vec<PublishableItem> = state
+        .db
+        .client
+        .query(&update_query)
+        .bind(("reason", &payload.reason))
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to withdraw item: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to withdraw item"))
+        })?
+        .take(0)
+        .map_err(|e| {
+            tracing::error!("Failed to parse updated item: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to parse updated item"))
+        })?;
+
+    let _item = updated
+        .into_iter()
+        .next()
+        .ok_or_else(|| ApiError::NotFound("Item not found or access denied".to_string()))?;
+
+    // Create audit log
+    let audit_service = AuditService::new(state.db.clone());
+    audit_service
+        .log(
+            &user,
+            "item.withdraw".to_string(),
+            "publishable_item".to_string(),
+            item_id.clone(),
+            serde_json::json!({
+                "reason": payload.reason
+            }),
+            None,
+            None,
+        )
+        .await?;
+
+    tracing::info!(
+        "Reviewer {} withdrew item {}",
+        user.username,
+        item_id
+    );
+
+    Ok(Json(serde_json::json!({
+        "message": "Item withdrawn successfully",
+        "item_id": item_id,
+        "status": "withdrawn"
+    })))
+}
+
+/// Add a correction to a published item (reviewer/admin only)
+async fn add_correction(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    Path(item_id): Path<String>,
+    Json(payload): Json<CorrectionRequest>,
+) -> ApiResult<Json<serde_json::Value>> {
+    // Verify reviewer or admin role
+    if !user.roles.contains(&"reviewer".to_string())
+        && !user.roles.contains(&"admin".to_string())
+    {
+        return Err(ApiError::Authorization(
+            "Reviewer or admin role required".to_string(),
+        ));
+    }
+
+    // Validate request
+    payload
+        .validate()
+        .map_err(|e| ApiError::Validation(e.to_string()))?;
+
+    let user_id = user.id.clone().unwrap_or_else(|| "unknown".to_string());
+    let now = Utc::now();
+
+    // Create correction log
+    let correction = CorrectionLog {
+        id: None,
+        item_id: format!("publishable_item:{}", item_id),
+        correction_type: payload.correction_type.clone(),
+        old_value: payload.old_value.clone(),
+        new_value: payload.new_value.clone(),
+        reason: payload.reason.clone(),
+        corrected_by: format!("user:{}", user_id),
+        corrected_at: now,
+    };
+
+    let created: Option<CorrectionLog> = state
+        .db
+        .create("correction_log", correction)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to create correction log: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to create correction log"))
+        })?;
+
+    let correction = created.ok_or_else(|| {
+        ApiError::Internal(anyhow::anyhow!("Correction log created but not returned"))
+    })?;
+
+    // Update item's corrections array
+    let update_query = format!(
+        "UPDATE publishable_item:{} SET corrections += $correction, updated_at = time::now()",
+        item_id
+    );
+
+    state
+        .db
+        .client
+        .query(&update_query)
+        .bind((
+            "correction",
+            serde_json::json!({
+                "type": payload.correction_type,
+                "reason": payload.reason,
+                "corrected_at": now.to_rfc3339(),
+                "corrected_by": user.username
+            }),
+        ))
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to update item corrections: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to update item corrections"))
+        })?;
+
+    // Create audit log
+    let audit_service = AuditService::new(state.db.clone());
+    audit_service
+        .log(
+            &user,
+            "item.correct".to_string(),
+            "publishable_item".to_string(),
+            item_id.clone(),
+            serde_json::json!({
+                "correction_type": payload.correction_type,
+                "reason": payload.reason
+            }),
+            None,
+            None,
+        )
+        .await?;
+
+    tracing::info!(
+        "Reviewer {} added correction to item {}",
+        user.username,
+        item_id
+    );
+
+    Ok(Json(serde_json::json!({
+        "message": "Correction added successfully",
+        "correction": correction
+    })))
+}
+
+/// Request takedown of a published item (any authenticated user)
+async fn request_takedown(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    Path(item_id): Path<String>,
+    Json(payload): Json<TakedownRequestModel>,
+) -> ApiResult<Json<serde_json::Value>> {
+    // Validate request
+    payload
+        .validate()
+        .map_err(|e| ApiError::Validation(e.to_string()))?;
+
+    let user_id = user.id.clone().unwrap_or_else(|| "unknown".to_string());
+    let now = Utc::now();
+
+    // Create takedown request
+    let takedown_req = serde_json::json!({
+        "item_id": format!("publishable_item:{}", item_id),
+        "requested_by": format!("user:{}", user_id),
+        "requester_email": payload.requester_email,
+        "reason": payload.reason,
+        "evidence_description": payload.evidence_description,
+        "status": "pending",
+        "created_at": now
+    });
+
+    let created: Option<serde_json::Value> = state
+        .db
+        .create("takedown_request", takedown_req)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to create takedown request: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to create takedown request"))
+        })?;
+
+    let _request = created.ok_or_else(|| {
+        ApiError::Internal(anyhow::anyhow!("Takedown request created but not returned"))
+    })?;
+
+    // Create audit log
+    let audit_service = AuditService::new(state.db.clone());
+    audit_service
+        .log(
+            &user,
+            "item.request_takedown".to_string(),
+            "publishable_item".to_string(),
+            item_id.clone(),
+            serde_json::json!({
+                "reason": payload.reason
+            }),
+            None,
+            None,
+        )
+        .await?;
+
+    tracing::info!(
+        "User {} requested takedown of item {}",
+        user.username,
+        item_id
+    );
+
+    Ok(Json(serde_json::json!({
+        "message": "Takedown request submitted successfully",
+        "item_id": item_id,
+        "status": "pending"
+    })))
+}
+
+/// Get a published item by slug (public access if published)
+async fn get_published_item(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+    user: Option<Extension<User>>,
+) -> ApiResult<Json<serde_json::Value>> {
+    // Query for published item with the slug
+    let query = "SELECT * FROM publishable_item WHERE slug = $slug AND status = 'published'";
+
+    let mut result = state
+        .db
+        .client
+        .query(query)
+        .bind(("slug", &slug))
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to fetch published item: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to fetch published item"))
+        })?;
+
+    let items: Vec<PublishableItem> = result.take(0).map_err(|e| {
+        tracing::error!("Failed to parse published item: {}", e);
+        ApiError::Internal(anyhow::anyhow!("Failed to parse published item"))
+    })?;
+
+    let item = items
+        .into_iter()
+        .next()
+        .ok_or_else(|| ApiError::NotFound("Item not found".to_string()))?;
+
+    // Get correction history
+    let correction_query = format!(
+        "SELECT * FROM correction_log WHERE item_id = publishable_item:{} ORDER BY corrected_at DESC",
+        item.id.as_ref().unwrap_or(&"unknown".to_string())
+    );
+
+    let mut correction_result = state
+        .db
+        .client
+        .query(&correction_query)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to fetch corrections: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to fetch corrections"))
+        })?;
+
+    let corrections: Vec<CorrectionLog> = correction_result.take(0).unwrap_or_default();
+
+    let username = user.map(|Extension(u)| u.username).unwrap_or_else(|| "anonymous".to_string());
+    tracing::info!("User {} viewed published item '{}'", username, slug);
+
+    Ok(Json(serde_json::json!({
+        "item": item,
+        "corrections": corrections
+    })))
+}
+
+#[derive(Debug, Deserialize, Validate)]
+struct WithdrawRequest {
+    #[validate(length(min = 10, max = 1000))]
+    reason: String,
 }
