@@ -22,7 +22,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::{
     config::Config,
     db::Database,
-    middleware::auth::auth_middleware,
+    middleware::{auth::auth_middleware, rate_limit::rate_limit_middleware},
 };
 
 #[tokio::main]
@@ -104,10 +104,18 @@ async fn main() -> anyhow::Result<()> {
         // Merge protected routes
         .merge(protected_routes)
 
-        // Global middleware
+        // Apply state first
+        .with_state(app_state.clone())
+
+        // Then apply stateful middleware
+        .layer(axum_middleware::from_fn_with_state(
+            app_state.clone(),
+            rate_limit_middleware,
+        ))
+
+        // Finally apply stateless middleware
         .layer(TraceLayer::new_for_http())
-        .layer(cors)
-        .with_state(app_state);
+        .layer(cors);
 
     // Start server
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));

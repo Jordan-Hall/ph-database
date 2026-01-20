@@ -407,8 +407,8 @@ async fn upload_evidence(
     let evidence = Evidence {
         id: None,
         report_id: format!("report:{}", report_id),
-        media_asset_id: media_asset_id.map(|id| format!("media_asset:{}", id)),
-        evidence_type,
+        media_asset_id: media_asset_id.clone().map(|id| format!("media_asset:{}", id)),
+        evidence_type: evidence_type.clone(),
         description: payload.description,
         collected_at: payload.collected_at,
         chain_of_custody: vec![],
