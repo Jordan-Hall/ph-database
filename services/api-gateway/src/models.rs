@@ -100,6 +100,7 @@ pub enum ReportStatus {
     Submitted,
     Triage,
     UnderReview,
+    Escalated,  // Automatically escalated due to review delay
     Approved,
     Rejected,
     NeedsMoreInfo,

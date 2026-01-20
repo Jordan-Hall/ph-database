@@ -19,6 +19,9 @@ pub fn router() -> Router<AppState> {
         .route("/queue", get(get_review_queue))
         .route("/:id/assign", post(assign_review))
         .route("/:id/decision", patch(make_review_decision))
+        .route("/:id/escalate", post(escalate_review))
+        .route("/stale", get(find_stale_reviews))
+        .route("/escalate-stale", post(auto_escalate_stale))
         .route("/:id", get(get_review_detail))
 }
 
@@ -343,5 +346,182 @@ async fn get_review_detail(
         "evidence": evidence,
         "audit_trail": audit_logs,
         "evidence_count": evidence.len()
+    })))
+}
+
+/// Manually escalate a report (admin only)
+async fn escalate_review(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    Path(report_id): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> ApiResult<Json<serde_json::Value>> {
+    // Verify admin role
+    if !user.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required to escalate reviews".to_string(),
+        ));
+    }
+
+    let user_id = user.id.clone().unwrap_or_else(|| "unknown".to_string());
+    let reason = payload
+        .get("reason")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Manually escalated by admin");
+
+    // Update report status to escalated
+    let update_query = format!(
+        "UPDATE report:{} SET status = 'escalated', updated_at = time::now() RETURN AFTER",
+        report_id
+    );
+
+    let updated: Vec<Report> = state
+        .db
+        .client
+        .query(&update_query)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to escalate report: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to escalate report"))
+        })?
+        .take(0)
+        .map_err(|e| {
+            tracing::error!("Failed to parse escalated report: {}", e);
+            ApiError::Internal(anyhow::anyhow!("Failed to parse report"))
+        })?;
+
+    let _report = updated
+        .into_iter()
+        .next()
+        .ok_or_else(|| ApiError::NotFound("Report not found".to_string()))?;
+
+    // Create audit log
+    let audit_service = AuditService::new(state.db.clone());
+    audit_service
+        .log(
+            &user,
+            "report.escalate".to_string(),
+            "report".to_string(),
+            report_id.clone(),
+            serde_json::json!({
+                "reason": reason,
+                "escalated_by": user_id
+            }),
+            None,
+            None,
+        )
+        .await?;
+
+    tracing::info!("Report {} escalated by admin {}", report_id, user.username);
+
+    Ok(Json(serde_json::json!({
+        "message": "Report escalated successfully",
+        "report_id": report_id,
+        "status": "escalated"
+    })))
+}
+
+/// Find stale reviews (under_review for >24 hours)
+async fn find_stale_reviews(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+) -> ApiResult<Json<serde_json::Value>> {
+    // Verify admin role
+    if !user.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required".to_string(),
+        ));
+    }
+
+    // Find reports under_review for more than 24 hours
+    let query = r#"
+        SELECT * FROM report
+        WHERE status = 'under_review'
+        AND updated_at < time::now() - 24h
+        ORDER BY updated_at ASC
+    "#;
+
+    let mut result = state.db.client.query(query).await.map_err(|e| {
+        tracing::error!("Failed to find stale reviews: {}", e);
+        ApiError::Internal(anyhow::anyhow!("Failed to find stale reviews"))
+    })?;
+
+    let stale_reports: Vec<Report> = result.take(0).map_err(|e| {
+        tracing::error!("Failed to parse stale reviews: {}", e);
+        ApiError::Internal(anyhow::anyhow!("Failed to parse stale reviews"))
+    })?;
+
+    let count = stale_reports.len();
+
+    tracing::info!("Admin {} queried stale reviews: {} found", user.username, count);
+
+    Ok(Json(serde_json::json!({
+        "stale_reviews": stale_reports,
+        "count": count
+    })))
+}
+
+/// Auto-escalate all stale reviews (admin only, can be called by cron job)
+async fn auto_escalate_stale(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+) -> ApiResult<Json<serde_json::Value>> {
+    // Verify admin role
+    if !user.roles.contains(&"admin".to_string()) {
+        return Err(ApiError::Authorization(
+            "Admin role required".to_string(),
+        ));
+    }
+
+    let user_id = user.id.clone().unwrap_or_else(|| "unknown".to_string());
+
+    // Update all stale reviews to escalated status
+    let query = r#"
+        UPDATE report
+        SET status = 'escalated', updated_at = time::now()
+        WHERE status = 'under_review'
+        AND updated_at < time::now() - 24h
+    "#;
+
+    let mut result = state.db.client.query(query).await.map_err(|e| {
+        tracing::error!("Failed to auto-escalate stale reviews: {}", e);
+        ApiError::Internal(anyhow::anyhow!("Failed to auto-escalate reviews"))
+    })?;
+
+    let escalated_reports: Vec<Report> = result.take(0).map_err(|e| {
+        tracing::error!("Failed to parse escalated reports: {}", e);
+        ApiError::Internal(anyhow::anyhow!("Failed to parse escalated reports"))
+    })?;
+
+    let count = escalated_reports.len();
+
+    // Create audit log
+    let audit_service = AuditService::new(state.db.clone());
+    audit_service
+        .log(
+            &user,
+            "report.auto_escalate".to_string(),
+            "report".to_string(),
+            "bulk".to_string(),
+            serde_json::json!({
+                "count": count,
+                "escalated_by": user_id,
+                "trigger": "auto"
+            }),
+            None,
+            None,
+        )
+        .await?;
+
+    tracing::info!(
+        "Auto-escalated {} stale reviews by admin {}",
+        count,
+        user.username
+    );
+
+    Ok(Json(serde_json::json!({
+        "message": format!("{} stale reviews escalated successfully", count),
+        "count": count,
+        "escalated_reports": escalated_reports
     })))
 }
