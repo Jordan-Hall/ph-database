@@ -70,6 +70,9 @@ enum Route {
     #[route("/profile")]
     ProfilePage {},
 
+    #[route("/profile/mfa")]
+    MfaSettingsPage {},
+
     // Admin routes
     #[route("/admin")]
     AdminDashboardPage {},
@@ -280,6 +283,17 @@ fn ProfilePage() -> Element {
         RequireAuth {
             Layout {
                 pages::Profile {}
+            }
+        }
+    }
+}
+
+#[component]
+fn MfaSettingsPage() -> Element {
+    rsx! {
+        RequireAuth {
+            Layout {
+                pages::MfaSettings {}
             }
         }
     }

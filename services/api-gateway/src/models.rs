@@ -43,6 +43,7 @@ pub struct LoginRequest {
     #[validate(email)]
     pub email: String,
     pub password: String,
+    pub mfa_code: Option<String>,  // Optional MFA code for 2FA login
 }
 
 #[derive(Debug, Serialize)]
@@ -50,6 +51,8 @@ pub struct AuthResponse {
     pub access_token: String,
     pub refresh_token: String,
     pub user: UserInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mfa_required: Option<bool>,  // Indicates if MFA code is required
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -828,4 +831,52 @@ pub struct PaginatedResponse<T> {
     pub per_page: u32,
     pub total: u64,
     pub total_pages: u64,
+}
+
+// ============================================================================
+// MULTI-FACTOR AUTHENTICATION (MFA)
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MfaSecret {
+    pub id: Option<String>,
+    pub user_id: String,
+    pub secret: String,  // Base32 encoded TOTP secret
+    pub backup_codes: Vec<String>,  // Hashed backup codes
+    pub created_at: DateTime<Utc>,
+    pub verified_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupCode {
+    pub code: String,
+    pub used: bool,
+    pub used_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MfaSetupResponse {
+    pub secret: String,
+    pub qr_code_url: String,
+    pub backup_codes: Vec<String>,  // Only shown once at setup
+    pub manual_entry_key: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct MfaVerifyRequest {
+    #[validate(length(equal = 6))]
+    pub code: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct MfaEnableRequest {
+    #[validate(length(equal = 6))]
+    pub code: String,  // TOTP code to confirm setup
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginWithMfaRequest {
+    pub username: String,
+    pub password: String,
+    pub mfa_code: Option<String>,
 }

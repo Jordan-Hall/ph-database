@@ -70,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Build protected routes that require authentication
     let protected_routes = Router::new()
+        .nest("/api/v1/auth", routes::auth::protected_router())
         .nest("/api/v1/users", routes::users::router())
         .nest("/api/v1/review", routes::review::router())
         .nest("/api/v1/face-search", routes::face_search::router())

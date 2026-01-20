@@ -84,22 +84,41 @@ fn create_headers(&self) -> Result<Headers, String> {
 
 ## 🔄 Post-MVP Enhancements (Optional - Priority ordered)
 
-### 4. Multi-Factor Authentication (MFA)
+### 4. Multi-Factor Authentication (MFA) ✅ COMPLETED
 **Priority:** MEDIUM
 **Time:** 1 day
-**Status:** Not started
+**Status:** ✅ DONE
 **Locations:**
-- `services/api-gateway/src/routes/auth.rs` - Add MFA endpoints
-- Database schema - Add MFA tables
-- Frontend - Add MFA setup UI
+- `services/api-gateway/src/routes/auth.rs` - MFA endpoints implemented
+- `services/api-gateway/src/models.rs` - MFA models added
+- `services/api-gateway/src/auth/mod.rs` - Login flow updated
+- `src/pages/mfa_settings.rs` - Frontend MFA setup page created
 
-**Tasks:**
-- [ ] Add MFA secret generation endpoint
-- [ ] Add TOTP verification endpoint
-- [ ] Add backup codes generation
-- [ ] Add MFA enable/disable endpoints
-- [ ] Update login flow to require MFA when enabled
-- [ ] Create frontend MFA setup page
+**Completed Actions:**
+- [x] Added MFA models (MfaSecret, MfaSetupResponse, MfaEnableRequest, etc.)
+- [x] Added totp-rs dependency for TOTP generation and verification
+- [x] Created 5 MFA endpoints:
+  * POST `/api/v1/auth/mfa/setup` - Generate TOTP secret and QR code
+  * POST `/api/v1/auth/mfa/enable` - Enable MFA after verifying TOTP code
+  * POST `/api/v1/auth/mfa/disable` - Disable MFA (requires verification)
+  * POST `/api/v1/auth/mfa/verify` - Verify TOTP code (testing endpoint)
+  * GET `/api/v1/auth/mfa/backup-codes` - Regenerate backup codes
+- [x] Updated login flow to check for MFA and require code when enabled
+- [x] Added mfa_required field to AuthResponse for MFA flow indication
+- [x] Implemented backup code generation and verification (10 codes per user)
+- [x] Created frontend MFA settings page with:
+  * QR code display for authenticator app setup
+  * TOTP code verification interface
+  * Backup codes display and regeneration
+  * MFA enable/disable controls
+- [x] Added route `/profile/mfa` for MFA settings page
+
+**Implementation Details:**
+- TOTP algorithm: SHA1, 6 digits, 30-second window
+- Backup codes: 8-character alphanumeric (UUID-based)
+- QR code: Base64-encoded PNG for easy display
+- Login supports both TOTP codes and backup codes
+- MFA secrets stored in `mfa_secret` table with hashed backup codes
 
 ### 5. Review Escalation Logic ✅ COMPLETED
 **Priority:** LOW
@@ -366,16 +385,16 @@ java -jar planetiler.jar \
 | Category | Total | Complete | In Progress | Pending |
 |----------|-------|----------|-------------|---------|
 | **Critical Path** | 3 | 3 | 0 | 0 |
-| **Post-MVP** | 5 | 3 | 0 | 2 |
+| **Post-MVP** | 5 | 4 | 0 | 1 |
 | **Phase 6 (Mapping)** | 2 | 0 | 0 | 2 |
 | **Phase 7 (Security)** | 3 | 0 | 0 | 3 |
 | **Future Work** | 5 | 0 | 0 | 5 |
-| **TOTAL** | **18** | **6** | **0** | **12** |
+| **TOTAL** | **18** | **7** | **0** | **11** |
 
-**Current Completion:** 🎉 100% MVP + Production Hardening (33% of all enhancements)
+**Current Completion:** 🎉 100% MVP + Production Hardening (39% of all enhancements)
 **Critical Path:** ✅ 100% Complete
-**Post-MVP:** 60% Complete (3/5)
-**Overall Platform:** Production-ready with content moderation features
+**Post-MVP:** 80% Complete (4/5)
+**Overall Platform:** Production-ready with advanced security (MFA) and content moderation features
 
 ---
 

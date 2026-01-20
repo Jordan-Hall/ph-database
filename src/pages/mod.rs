@@ -30,6 +30,7 @@ pub mod published_item;
 
 // Profile
 pub mod profile;
+pub mod mfa_settings;
 
 // Admin
 pub mod admin_dashboard;
@@ -55,6 +56,7 @@ pub use submit_story::*;
 pub use map_view::*;
 pub use published_item::*;
 pub use profile::*;
+pub use mfa_settings::*;
 pub use admin_dashboard::*;
 pub use admin_users::*;
 pub use admin_tenants::*;
