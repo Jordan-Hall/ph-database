@@ -83,12 +83,10 @@ impl NotificationService {
 
     /// Request browser notification permission
     pub async fn request_permission() -> bool {
-        if let Ok(Some(window)) = web_sys::window().ok_or("No window") {
-            if let Ok(promise) = Notification::request_permission(&window) {
-                if let Ok(result) = wasm_bindgen_futures::JsFuture::from(promise).await {
-                    if let Some(permission) = result.as_string() {
-                        return permission == "granted";
-                    }
+        if let Ok(promise) = Notification::request_permission() {
+            if let Ok(result) = wasm_bindgen_futures::JsFuture::from(promise).await {
+                if let Some(permission) = result.as_string() {
+                    return permission == "granted";
                 }
             }
         }
@@ -97,20 +95,16 @@ impl NotificationService {
 
     /// Check if browser notifications are supported and permitted
     pub fn has_permission() -> bool {
-        if let Some(permission) = Notification::permission() {
-            permission == NotificationPermission::Granted
-        } else {
-            false
-        }
+        Notification::permission() == NotificationPermission::Granted
     }
 
     /// Show a browser notification
     pub fn show_browser_notification(title: &str, body: &str) {
         if Self::has_permission() {
-            if let Ok(notification) = Notification::new_with_options(
-                title,
-                web_sys::NotificationOptions::new().body(body),
-            ) {
+            let mut options = web_sys::NotificationOptions::new();
+            options.set_body(body);
+
+            if let Ok(notification) = Notification::new_with_options(title, &options) {
                 log::debug!("Browser notification shown: {}", title);
 
                 // Auto-close after 5 seconds

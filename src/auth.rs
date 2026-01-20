@@ -1,5 +1,6 @@
 use crate::api::{ApiClient, UserInfo};
 use dioxus::prelude::*;
+use dioxus_router::hooks::use_navigator;
 
 #[derive(Clone, Copy)]
 pub struct AuthState {
@@ -187,7 +188,7 @@ pub fn use_auth() -> AuthState {
 #[component]
 pub fn RequireAuth(children: Element) -> Element {
     let auth = use_auth();
-    let nav = navigator();
+    let nav = use_navigator();
 
     if !auth.is_authenticated() {
         // Redirect to login
@@ -208,7 +209,7 @@ pub fn RequireAuth(children: Element) -> Element {
 #[component]
 pub fn RequireAdmin(children: Element) -> Element {
     let auth = use_auth();
-    let nav = navigator();
+    let nav = use_navigator();
 
     if !auth.is_authenticated() {
         nav.push("/login");
