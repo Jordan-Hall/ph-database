@@ -101,7 +101,7 @@ impl NotificationService {
     /// Show a browser notification
     pub fn show_browser_notification(title: &str, body: &str) {
         if Self::has_permission() {
-            let mut options = web_sys::NotificationOptions::new();
+            let options = web_sys::NotificationOptions::new();
             options.set_body(body);
 
             if let Ok(notification) = Notification::new_with_options(title, &options) {

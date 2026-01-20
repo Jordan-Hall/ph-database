@@ -10,7 +10,7 @@ pub fn Dashboard() -> Element {
     let mut reports_count = use_signal(|| 0);
     let mut alerts_count = use_signal(|| 0);
     let mut loading = use_signal(|| true);
-    let mut notifications = use_context::<NotificationService>();
+    let _notifications = use_context::<NotificationService>();
 
     // Load dashboard stats
     use_effect(move || {

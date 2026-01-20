@@ -11,7 +11,7 @@ pub fn NewAlert() -> Element {
     let mut last_seen = use_signal(|| String::new());
     let mut description = use_signal(|| String::new());
     let mut contact = use_signal(|| String::new());
-    let mut priority = use_signal(|| String::from("medium"));
+    let priority = use_signal(|| String::from("medium"));
     let mut loading = use_signal(|| false);
     let mut notifications = use_context::<NotificationService>();
     let nav = use_navigator();

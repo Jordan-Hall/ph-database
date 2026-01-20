@@ -3,7 +3,6 @@ use gloo_net::http::Request;
 use gloo_storage::{LocalStorage, Storage};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use web_sys::Headers;
 
 const API_BASE_URL: &str = "http://localhost:8080";
 const TOKEN_KEY: &str = "auth_token";
@@ -49,7 +48,7 @@ impl ApiClient {
     /// Generic GET request
     async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, String> {
         let url = format!("{}{}", self.base_url, path);
-        let mut request = Request::get(&url);
+        let request = Request::get(&url);
 
         // TODO: Add authentication header support for gloo-net 0.6
         // The header API changed in gloo-net 0.6 - needs investigation
@@ -87,7 +86,7 @@ impl ApiClient {
         body: &T,
     ) -> Result<R, String> {
         let url = format!("{}{}", self.base_url, path);
-        let mut request = Request::post(&url).json(body).unwrap();
+        let request = Request::post(&url).json(body).unwrap();
 
         // TODO: Add authentication header support for gloo-net 0.6
         // The header API changed in gloo-net 0.6 - needs investigation
@@ -125,7 +124,7 @@ impl ApiClient {
         body: &T,
     ) -> Result<R, String> {
         let url = format!("{}{}", self.base_url, path);
-        let mut request = Request::patch(&url).json(body).unwrap();
+        let request = Request::patch(&url).json(body).unwrap();
 
         // TODO: Add authentication header support for gloo-net 0.6
         // The header API changed in gloo-net 0.6 - needs investigation
@@ -159,7 +158,7 @@ impl ApiClient {
     /// Generic DELETE request
     async fn delete<R: DeserializeOwned>(&self, path: &str) -> Result<R, String> {
         let url = format!("{}{}", self.base_url, path);
-        let mut request = Request::delete(&url);
+        let request = Request::delete(&url);
 
         // TODO: Add authentication header support for gloo-net 0.6
         // The header API changed in gloo-net 0.6 - needs investigation

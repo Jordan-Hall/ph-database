@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_router::Link;
 use crate::api::{ApiClient, Report};
-use crate::notifications::NotificationService;
 
 #[component]
 pub fn Reports() -> Element {

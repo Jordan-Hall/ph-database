@@ -7,7 +7,7 @@ mod notifications;
 mod pages;
 
 use dioxus::prelude::*;
-use dioxus_router::{Routable, Router, Link};
+use dioxus_router::{Routable, Router};
 
 use auth::{AuthState, RequireAdmin, RequireAuth};
 use components::{Header, Footer};
