@@ -751,6 +751,56 @@ pub struct TakedownRequest {
     pub evidence_description: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AppealStatus {
+    Pending,
+    UnderReview,
+    Approved,
+    Rejected,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TakedownAppeal {
+    pub id: Option<String>,
+    pub takedown_request_id: String,
+    pub item_id: String,
+    pub appellant_id: String,
+    pub appellant_email: String,
+    pub appeal_reason: String,
+    pub supporting_evidence: Option<String>,
+    pub status: AppealStatus,
+    pub reviewed_by: Option<String>,
+    pub review_notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct SubmitAppealRequest {
+    pub takedown_request_id: String,
+    #[validate(length(min = 50, max = 3000))]
+    pub appeal_reason: String,
+    #[validate(email)]
+    pub appellant_email: String,
+    pub supporting_evidence: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct ReviewAppealRequest {
+    pub decision: AppealDecision,
+    #[validate(length(min = 10, max = 1000))]
+    pub review_notes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AppealDecision {
+    Approve,
+    Reject,
+}
+
 // ============================================================================
 // PAGINATION
 // ============================================================================
