@@ -13,7 +13,10 @@ use crate::{
         Evidence, EvidenceResponse, EvidenceType, HarmRisk, MediaAsset, Report, ReportStatus,
         TranscodingStatus, UploadEvidenceRequest, User, VisibilityTier,
     },
-    services::surrealdb_features::{FullTextSearchService, GraphQueryService, SearchResult},
+    services::{
+        surrealdb_features::{FullTextSearchService, GraphQueryService, SearchResult},
+        AuditService,
+    },
     AppState,
 };
 
@@ -173,6 +176,25 @@ async fn create_report(
         submitted_by
     );
 
+    // Create audit log
+    if let Some(user_id) = submitted_by.as_ref() {
+        AuditService::log_action(
+            &state.db,
+            user_id,
+            "report_created",
+            "report",
+            report.id.as_deref(),
+            Some(serde_json::json!({
+                "title": report.title,
+                "status": report.status,
+                "category": report.category,
+            })),
+            None,
+        )
+        .await
+        .ok();
+    }
+
     Ok(Json(ReportResponse { report }))
 }
 
@@ -254,6 +276,23 @@ async fn update_report_status(
         payload.status,
         user.username
     );
+
+    // Create audit log
+    let user_id = user.id.clone().unwrap_or_else(|| "unknown".to_string());
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "report_status_updated",
+        "report",
+        Some(&id),
+        Some(serde_json::json!({
+            "new_status": payload.status,
+            "updated_by": user.username,
+        })),
+        None,
+    )
+    .await
+    .ok();
 
     Ok(Json(ReportResponse { report }))
 }
@@ -400,6 +439,23 @@ async fn upload_evidence(
         report_id,
         user.username
     );
+
+    // Create audit log
+    AuditService::log_action(
+        &state.db,
+        &user_id,
+        "evidence_uploaded",
+        "evidence",
+        evidence.id.as_deref(),
+        Some(serde_json::json!({
+            "report_id": report_id,
+            "evidence_type": evidence_type,
+            "has_media": media_asset_id.is_some(),
+        })),
+        None,
+    )
+    .await
+    .ok();
 
     // For video uploads, would return a presigned S3 URL here
     // TODO: Implement presigned URL generation for large file uploads

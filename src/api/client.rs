@@ -1,8 +1,10 @@
 use super::types::*;
-use gloo_net::http::Request;
 use gloo_storage::{LocalStorage, Storage};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{Headers, Request as WebRequest, RequestInit, RequestMode, Response as WebResponse};
 
 const API_BASE_URL: &str = "http://localhost:8080";
 const TOKEN_KEY: &str = "auth_token";
@@ -45,38 +47,53 @@ impl ApiClient {
         self.get_token().is_some()
     }
 
+    /// Create headers with authentication if token exists
+    fn create_headers(&self) -> Result<Headers, String> {
+        let headers = Headers::new().map_err(|_| "Failed to create headers".to_string())?;
+
+        if let Some(token) = self.get_token() {
+            headers
+                .set("Authorization", &format!("Bearer {}", token))
+                .map_err(|_| "Failed to set Authorization header".to_string())?;
+        }
+
+        Ok(headers)
+    }
+
     /// Generic GET request
     async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, String> {
         let url = format!("{}{}", self.base_url, path);
-        let request = Request::get(&url);
 
-        // TODO: Add authentication header support for gloo-net 0.6
-        // The header API changed in gloo-net 0.6 - needs investigation
-        if let Some(_token) = self.get_token() {
-            // Authentication headers temporarily disabled
-            // Need to use web_sys Headers API or different gloo-net method
-        }
+        // Use web-sys fetch API directly for full header support
+        let opts = RequestInit::new();
+        opts.set_method("GET");
+        opts.set_mode(RequestMode::Cors);
 
-        let response = request
-            .send()
+        let headers = self.create_headers()?;
+        opts.set_headers(&JsValue::from(headers));
+
+        let request = WebRequest::new_with_str_and_init(&url, &opts)
+            .map_err(|_| "Failed to create request".to_string())?;
+
+        let window = web_sys::window().ok_or("No window found".to_string())?;
+        let resp_value = JsFuture::from(window.fetch_with_request(&request))
             .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .map_err(|_| "Fetch failed".to_string())?;
+
+        let response: WebResponse = resp_value.dyn_into()
+            .map_err(|_| "Failed to cast to Response".to_string())?;
 
         if !response.ok() {
-            let error: ApiError = response
-                .json()
-                .await
-                .unwrap_or_else(|_| ApiError {
-                    error: "Unknown".to_string(),
-                    message: format!("Request failed with status: {}", response.status()),
-                });
-            return Err(error.message);
+            let status = response.status();
+            return Err(format!("Request failed with status: {}", status));
         }
 
-        response
-            .json()
+        let json = JsFuture::from(response.json().map_err(|_| "Failed to get JSON".to_string())?)
             .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
+            .map_err(|_| "Failed to parse JSON".to_string())?;
+
+        serde_wasm_bindgen::from_value(json)
+            .map_err(|e| format!("Failed to deserialize: {}", e))
     }
 
     /// Generic POST request
@@ -86,35 +103,42 @@ impl ApiClient {
         body: &T,
     ) -> Result<R, String> {
         let url = format!("{}{}", self.base_url, path);
-        let request = Request::post(&url).json(body).unwrap();
 
-        // TODO: Add authentication header support for gloo-net 0.6
-        // The header API changed in gloo-net 0.6 - needs investigation
-        if let Some(_token) = self.get_token() {
-            // Authentication headers temporarily disabled
-            // Need to use web_sys Headers API or different gloo-net method
-        }
+        let opts = RequestInit::new();
+        opts.set_method("POST");
+        opts.set_mode(RequestMode::Cors);
 
-        let response = request
-            .send()
+        let headers = self.create_headers()?;
+        headers.set("Content-Type", "application/json")
+            .map_err(|_| "Failed to set Content-Type header".to_string())?;
+        opts.set_headers(&JsValue::from(headers));
+
+        let body_json = serde_json::to_string(body)
+            .map_err(|e| format!("Failed to serialize body: {}", e))?;
+        opts.set_body(&JsValue::from_str(&body_json));
+
+        let request = WebRequest::new_with_str_and_init(&url, &opts)
+            .map_err(|_| "Failed to create request".to_string())?;
+
+        let window = web_sys::window().ok_or("No window found".to_string())?;
+        let resp_value = JsFuture::from(window.fetch_with_request(&request))
             .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .map_err(|_| "Fetch failed".to_string())?;
+
+        let response: WebResponse = resp_value.dyn_into()
+            .map_err(|_| "Failed to cast to Response".to_string())?;
 
         if !response.ok() {
-            let error: ApiError = response
-                .json()
-                .await
-                .unwrap_or_else(|_| ApiError {
-                    error: "Unknown".to_string(),
-                    message: format!("Request failed with status: {}", response.status()),
-                });
-            return Err(error.message);
+            let status = response.status();
+            return Err(format!("Request failed with status: {}", status));
         }
 
-        response
-            .json()
+        let json = JsFuture::from(response.json().map_err(|_| "Failed to get JSON".to_string())?)
             .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
+            .map_err(|_| "Failed to parse JSON".to_string())?;
+
+        serde_wasm_bindgen::from_value(json)
+            .map_err(|e| format!("Failed to deserialize: {}", e))
     }
 
     /// Generic PATCH request
@@ -124,69 +148,77 @@ impl ApiClient {
         body: &T,
     ) -> Result<R, String> {
         let url = format!("{}{}", self.base_url, path);
-        let request = Request::patch(&url).json(body).unwrap();
 
-        // TODO: Add authentication header support for gloo-net 0.6
-        // The header API changed in gloo-net 0.6 - needs investigation
-        if let Some(_token) = self.get_token() {
-            // Authentication headers temporarily disabled
-            // Need to use web_sys Headers API or different gloo-net method
-        }
+        let opts = RequestInit::new();
+        opts.set_method("PATCH");
+        opts.set_mode(RequestMode::Cors);
 
-        let response = request
-            .send()
+        let headers = self.create_headers()?;
+        headers.set("Content-Type", "application/json")
+            .map_err(|_| "Failed to set Content-Type header".to_string())?;
+        opts.set_headers(&JsValue::from(headers));
+
+        let body_json = serde_json::to_string(body)
+            .map_err(|e| format!("Failed to serialize body: {}", e))?;
+        opts.set_body(&JsValue::from_str(&body_json));
+
+        let request = WebRequest::new_with_str_and_init(&url, &opts)
+            .map_err(|_| "Failed to create request".to_string())?;
+
+        let window = web_sys::window().ok_or("No window found".to_string())?;
+        let resp_value = JsFuture::from(window.fetch_with_request(&request))
             .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .map_err(|_| "Fetch failed".to_string())?;
+
+        let response: WebResponse = resp_value.dyn_into()
+            .map_err(|_| "Failed to cast to Response".to_string())?;
 
         if !response.ok() {
-            let error: ApiError = response
-                .json()
-                .await
-                .unwrap_or_else(|_| ApiError {
-                    error: "Unknown".to_string(),
-                    message: format!("Request failed with status: {}", response.status()),
-                });
-            return Err(error.message);
+            let status = response.status();
+            return Err(format!("Request failed with status: {}", status));
         }
 
-        response
-            .json()
+        let json = JsFuture::from(response.json().map_err(|_| "Failed to get JSON".to_string())?)
             .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
+            .map_err(|_| "Failed to parse JSON".to_string())?;
+
+        serde_wasm_bindgen::from_value(json)
+            .map_err(|e| format!("Failed to deserialize: {}", e))
     }
 
     /// Generic DELETE request
     async fn delete<R: DeserializeOwned>(&self, path: &str) -> Result<R, String> {
         let url = format!("{}{}", self.base_url, path);
-        let request = Request::delete(&url);
 
-        // TODO: Add authentication header support for gloo-net 0.6
-        // The header API changed in gloo-net 0.6 - needs investigation
-        if let Some(_token) = self.get_token() {
-            // Authentication headers temporarily disabled
-            // Need to use web_sys Headers API or different gloo-net method
-        }
+        let opts = RequestInit::new();
+        opts.set_method("DELETE");
+        opts.set_mode(RequestMode::Cors);
 
-        let response = request
-            .send()
+        let headers = self.create_headers()?;
+        opts.set_headers(&JsValue::from(headers));
+
+        let request = WebRequest::new_with_str_and_init(&url, &opts)
+            .map_err(|_| "Failed to create request".to_string())?;
+
+        let window = web_sys::window().ok_or("No window found".to_string())?;
+        let resp_value = JsFuture::from(window.fetch_with_request(&request))
             .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .map_err(|_| "Fetch failed".to_string())?;
+
+        let response: WebResponse = resp_value.dyn_into()
+            .map_err(|_| "Failed to cast to Response".to_string())?;
 
         if !response.ok() {
-            let error: ApiError = response
-                .json()
-                .await
-                .unwrap_or_else(|_| ApiError {
-                    error: "Unknown".to_string(),
-                    message: format!("Request failed with status: {}", response.status()),
-                });
-            return Err(error.message);
+            let status = response.status();
+            return Err(format!("Request failed with status: {}", status));
         }
 
-        response
-            .json()
+        let json = JsFuture::from(response.json().map_err(|_| "Failed to get JSON".to_string())?)
             .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
+            .map_err(|_| "Failed to parse JSON".to_string())?;
+
+        serde_wasm_bindgen::from_value(json)
+            .map_err(|e| format!("Failed to deserialize: {}", e))
     }
 
     // ========================================================================
