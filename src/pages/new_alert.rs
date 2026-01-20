@@ -1,4 +1,6 @@
 use dioxus::prelude::*;
+use dioxus_router::Link;
+use dioxus_router::hooks::use_navigator;
 use crate::api::{ApiClient, CreateAlertRequest};
 use crate::notifications::NotificationService;
 
@@ -12,7 +14,7 @@ pub fn NewAlert() -> Element {
     let mut priority = use_signal(|| String::from("medium"));
     let mut loading = use_signal(|| false);
     let mut notifications = use_context::<NotificationService>();
-    let nav = navigator();
+    let nav = use_navigator();
 
     let on_submit = move |evt: Event<FormData>| {
         evt.prevent_default();

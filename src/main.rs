@@ -7,10 +7,10 @@ mod notifications;
 mod pages;
 
 use dioxus::prelude::*;
-use dioxus_router::prelude::*;
+use dioxus_router::{Routable, Router, Link};
 
 use auth::{AuthState, RequireAdmin, RequireAuth};
-use components::Header;
+use components::{Header, Footer};
 use notifications::{NotificationContainer, NotificationService};
 
 fn main() {
@@ -112,54 +112,73 @@ fn App() -> Element {
 }
 
 // ============================================================================
+// Layout Component
+// ============================================================================
+
+#[component]
+fn Layout(children: Element) -> Element {
+    rsx! {
+        Header {}
+        {children}
+        Footer {}
+    }
+}
+
+// ============================================================================
 // Public Routes
 // ============================================================================
 
 #[component]
 fn HomePage() -> Element {
     rsx! {
-        Header {}
-        pages::Home {}
+        Layout {
+            pages::Home {}
+        }
     }
 }
 
 #[component]
 fn LoginPage() -> Element {
     rsx! {
-        Header {}
-        pages::Login {}
+        Layout {
+            pages::Login {}
+        }
     }
 }
 
 #[component]
 fn RegisterPage() -> Element {
     rsx! {
-        Header {}
-        pages::Register {}
+        Layout {
+            pages::Register {}
+        }
     }
 }
 
 #[component]
 fn PublishedItemPage(slug: String) -> Element {
     rsx! {
-        Header {}
-        pages::PublishedItem { slug }
+        Layout {
+            pages::PublishedItem { slug }
+        }
     }
 }
 
 #[component]
 fn StoriesPage() -> Element {
     rsx! {
-        Header {}
-        pages::Stories {}
+        Layout {
+            pages::Stories {}
+        }
     }
 }
 
 #[component]
 fn PublicAlertsPage() -> Element {
     rsx! {
-        Header {}
-        pages::PublicAlerts {}
+        Layout {
+            pages::PublicAlerts {}
+        }
     }
 }
 
@@ -171,8 +190,9 @@ fn PublicAlertsPage() -> Element {
 fn DashboardPage() -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::Dashboard {}
+            Layout {
+                pages::Dashboard {}
+            }
         }
     }
 }
@@ -181,8 +201,9 @@ fn DashboardPage() -> Element {
 fn ReportsPage() -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::Reports {}
+            Layout {
+                pages::Reports {}
+            }
         }
     }
 }
@@ -191,8 +212,9 @@ fn ReportsPage() -> Element {
 fn NewReportPage() -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::NewReport {}
+            Layout {
+                pages::NewReport {}
+            }
         }
     }
 }
@@ -201,8 +223,9 @@ fn NewReportPage() -> Element {
 fn ReportDetailPage(id: String) -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::ReportDetail { id }
+            Layout {
+                pages::ReportDetail { id }
+            }
         }
     }
 }
@@ -211,8 +234,9 @@ fn ReportDetailPage(id: String) -> Element {
 fn ManageAlertsPage() -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::ManageAlerts {}
+            Layout {
+                pages::ManageAlerts {}
+            }
         }
     }
 }
@@ -221,8 +245,9 @@ fn ManageAlertsPage() -> Element {
 fn NewAlertPage() -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::NewAlert {}
+            Layout {
+                pages::NewAlert {}
+            }
         }
     }
 }
@@ -231,8 +256,9 @@ fn NewAlertPage() -> Element {
 fn MapPage() -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::MapView {}
+            Layout {
+                pages::MapView {}
+            }
         }
     }
 }
@@ -241,8 +267,9 @@ fn MapPage() -> Element {
 fn SubmitStoryPage() -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::SubmitStory {}
+            Layout {
+                pages::SubmitStory {}
+            }
         }
     }
 }
@@ -251,8 +278,9 @@ fn SubmitStoryPage() -> Element {
 fn ProfilePage() -> Element {
     rsx! {
         RequireAuth {
-            Header {}
-            pages::Profile {}
+            Layout {
+                pages::Profile {}
+            }
         }
     }
 }
@@ -265,8 +293,9 @@ fn ProfilePage() -> Element {
 fn AdminDashboardPage() -> Element {
     rsx! {
         RequireAdmin {
-            Header {}
-            pages::AdminDashboard {}
+            Layout {
+                pages::AdminDashboard {}
+            }
         }
     }
 }
@@ -275,8 +304,9 @@ fn AdminDashboardPage() -> Element {
 fn AdminUsersPage() -> Element {
     rsx! {
         RequireAdmin {
-            Header {}
-            pages::AdminUsers {}
+            Layout {
+                pages::AdminUsers {}
+            }
         }
     }
 }
@@ -285,8 +315,9 @@ fn AdminUsersPage() -> Element {
 fn AdminTenantsPage() -> Element {
     rsx! {
         RequireAdmin {
-            Header {}
-            pages::AdminTenants {}
+            Layout {
+                pages::AdminTenants {}
+            }
         }
     }
 }
@@ -295,8 +326,9 @@ fn AdminTenantsPage() -> Element {
 fn AdminReviewPage() -> Element {
     rsx! {
         RequireAdmin {
-            Header {}
-            pages::AdminReview {}
+            Layout {
+                pages::AdminReview {}
+            }
         }
     }
 }
@@ -308,15 +340,17 @@ fn AdminReviewPage() -> Element {
 #[component]
 fn AddRecordPage() -> Element {
     rsx! {
-        Header {}
-        pages::AddRecord {}
+        Layout {
+            pages::AddRecord {}
+        }
     }
 }
 
 #[component]
 fn ViewRecordPage(id: String) -> Element {
     rsx! {
-        Header {}
-        pages::ViewRecord { id }
+        Layout {
+            pages::ViewRecord { id }
+        }
     }
 }

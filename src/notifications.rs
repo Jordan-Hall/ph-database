@@ -64,7 +64,7 @@ impl NotificationService {
         self.notifications.write().push_back(notification);
 
         // Auto-remove after duration
-        let notifications = self.notifications;
+        let mut notifications = self.notifications;
         spawn(async move {
             gloo_timers::future::sleep(std::time::Duration::from_millis(duration_ms as u64)).await;
             notifications.write().retain(|n| n.id != id);
@@ -139,7 +139,7 @@ pub fn NotificationContainer() -> Element {
         div { class: "notification-container",
             style: "position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;",
             for notification in notifications {
-                ToastNotification {
+                Toast {
                     key: "{notification.id}",
                     notification: notification.clone(),
                     on_close: move |_| {
@@ -152,7 +152,7 @@ pub fn NotificationContainer() -> Element {
 }
 
 #[component]
-fn ToastNotification(
+fn Toast(
     notification: ToastNotification,
     on_close: EventHandler<()>,
 ) -> Element {

@@ -1,9 +1,9 @@
 use dioxus::prelude::*;
-use crate::api::{ApiClient, PublishedItem};
+use crate::api::{ApiClient, PublishedItem as PublishedItemData};
 
 #[component]
 pub fn PublishedItem(slug: String) -> Element {
-    let mut item = use_signal(|| None::<PublishedItem>);
+    let mut item = use_signal(|| None::<PublishedItemData>);
     let mut loading = use_signal(|| true);
 
     use_effect(move || {

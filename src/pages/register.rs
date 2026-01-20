@@ -1,4 +1,6 @@
 use dioxus::prelude::*;
+use dioxus_router::Link;
+use dioxus_router::hooks::use_navigator;
 use crate::auth::use_auth;
 use crate::notifications::NotificationService;
 
@@ -10,7 +12,7 @@ pub fn Register() -> Element {
     let mut password_confirm = use_signal(|| String::new());
     let mut auth = use_auth();
     let mut notifications = use_context::<NotificationService>();
-    let nav = navigator();
+    let nav = use_navigator();
 
     let on_submit = move |evt: Event<FormData>| {
         evt.prevent_default();

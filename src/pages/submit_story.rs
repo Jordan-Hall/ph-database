@@ -1,4 +1,6 @@
 use dioxus::prelude::*;
+use dioxus_router::Link;
+use dioxus_router::hooks::use_navigator;
 use crate::api::{ApiClient, SubmitStoryRequest};
 use crate::notifications::NotificationService;
 
@@ -11,7 +13,7 @@ pub fn SubmitStory() -> Element {
     let mut consent = use_signal(|| false);
     let mut loading = use_signal(|| false);
     let mut notifications = use_context::<NotificationService>();
-    let nav = navigator();
+    let nav = use_navigator();
 
     let on_submit = move |evt: Event<FormData>| {
         evt.prevent_default();

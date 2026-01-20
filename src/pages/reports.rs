@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use dioxus_router::Link;
 use crate::api::{ApiClient, Report};
 use crate::notifications::NotificationService;
 
@@ -21,22 +22,6 @@ pub fn Reports() -> Element {
             
             loading.set(false);
         });
-    });
-
-    let filtered_reports = use_memo(move || {
-        let query = search_query().to_lowercase();
-        if query.is_empty() {
-            reports()
-        } else {
-            reports()
-                .into_iter()
-                .filter(|r| {
-                    r.title.to_lowercase().contains(&query)
-                        || r.subject_name.to_lowercase().contains(&query)
-                        || r.offense_type.to_lowercase().contains(&query)
-                })
-                .collect()
-        }
     });
 
     rsx! {
@@ -72,14 +57,32 @@ pub fn Reports() -> Element {
                 if loading() {
                     p { class: "govuk-body", "Loading reports..." }
                 } else {
-                    if filtered_reports().is_empty() {
-                        div { class: "govuk-inset-text",
-                            p { "No reports found. ", Link { to: "/reports/new", "Create the first report" } }
-                        }
-                    } else {
-                        p { class: "govuk-body", "Showing {filtered_reports().len()} report(s)" }
-                        
-                        for report in filtered_reports() {
+                    {
+                        let query = search_query().to_lowercase();
+                        let filtered: Vec<_> = if query.is_empty() {
+                            reports().clone()
+                        } else {
+                            reports()
+                                .into_iter()
+                                .filter(|r| {
+                                    r.title.to_lowercase().contains(&query)
+                                        || r.subject_name.to_lowercase().contains(&query)
+                                        || r.offense_type.to_lowercase().contains(&query)
+                                })
+                                .collect()
+                        };
+
+                        if filtered.is_empty() {
+                            rsx! {
+                                div { class: "govuk-inset-text",
+                                    p { "No reports found. ", Link { to: "/reports/new", "Create the first report" } }
+                                }
+                            }
+                        } else {
+                            rsx! {
+                                p { class: "govuk-body", "Showing {filtered.len()} report(s)" }
+
+                                for report in filtered.iter() {
                             div { class: "govuk-summary-card",
                                 div { class: "govuk-summary-card__title-wrapper",
                                     h2 { class: "govuk-summary-card__title",
@@ -126,6 +129,8 @@ pub fn Reports() -> Element {
                                                     "{report.harm_risk}"
                                                 }
                                             }
+                                        }
+                                    }
                                         }
                                     }
                                 }
