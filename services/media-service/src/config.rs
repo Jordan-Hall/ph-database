@@ -11,6 +11,9 @@ pub struct Config {
     pub minio_region: String,
     pub max_video_size_mb: usize,
     pub ffmpeg_path: String,
+    pub clamd_host: String,
+    pub clamd_port: u16,
+    pub quarantine_dir: String,
 }
 
 impl Config {
@@ -38,6 +41,13 @@ impl Config {
                 .parse()?,
             ffmpeg_path: std::env::var("FFMPEG_PATH")
                 .unwrap_or_else(|_| "ffmpeg".to_string()),
+            clamd_host: std::env::var("CLAMD_HOST")
+                .unwrap_or_else(|_| "localhost".to_string()),
+            clamd_port: std::env::var("CLAMD_PORT")
+                .unwrap_or_else(|_| "3310".to_string())
+                .parse()?,
+            quarantine_dir: std::env::var("QUARANTINE_DIR")
+                .unwrap_or_else(|_| "/tmp/quarantine".to_string()),
         })
     }
 }

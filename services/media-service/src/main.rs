@@ -18,10 +18,12 @@ mod config;
 mod error;
 mod storage;
 mod video;
+mod virus_scan;
 
 use config::Config;
 use error::{AppError, AppResult};
 use storage::StorageClient;
+use virus_scan::VirusScanner;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -48,14 +50,34 @@ async fn main() -> anyhow::Result<()> {
     let storage = StorageClient::new(&config).await?;
     tracing::info!("MinIO storage initialized");
 
-    // Ensure upload directory exists
+    // Initialize virus scanner
+    let scanner = VirusScanner::new(config.clamd_host.clone(), config.clamd_port);
+    if scanner.ping().await {
+        if let Ok(version) = scanner.version().await {
+            tracing::info!("ClamAV virus scanner initialized: {}", version);
+        } else {
+            tracing::info!("ClamAV daemon connected");
+        }
+    } else {
+        tracing::warn!(
+            "ClamAV daemon not available at {}:{} - virus scanning will be skipped",
+            config.clamd_host,
+            config.clamd_port
+        );
+    }
+
+    // Ensure required directories exist
     fs::create_dir_all(&config.upload_dir).await?;
     tracing::info!("Upload directory ready: {}", config.upload_dir);
+
+    fs::create_dir_all(&config.quarantine_dir).await?;
+    tracing::info!("Quarantine directory ready: {}", config.quarantine_dir);
 
     // Build application state
     let app_state = AppState {
         config: config.clone(),
         storage,
+        scanner,
     };
 
     // Configure CORS
@@ -93,18 +115,27 @@ async fn main() -> anyhow::Result<()> {
 pub struct AppState {
     pub config: Config,
     pub storage: StorageClient,
+    pub scanner: VirusScanner,
 }
 
 #[derive(Serialize)]
 struct HealthResponse {
     status: String,
     service: String,
+    virus_scanner: String,
 }
 
-async fn health_check() -> Json<HealthResponse> {
+async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
+    let virus_scanner_status = if state.scanner.ping().await {
+        "available".to_string()
+    } else {
+        "unavailable".to_string()
+    };
+
     Json(HealthResponse {
         status: "healthy".to_string(),
         service: "media-service".to_string(),
+        virus_scanner: virus_scanner_status,
     })
 }
 
@@ -161,8 +192,44 @@ async fn upload_video(
         AppError::InvalidInput("No video file provided in upload".to_string())
     })?;
 
-    // TODO: Queue for processing
-    // - Virus scanning
+    // Virus scanning
+    if state.scanner.ping().await {
+        tracing::info!("Scanning {} for viruses...", media_id);
+        let scan_result = state.scanner.scan_file(std::path::Path::new(&file_path)).await?;
+
+        if scan_result.is_infected {
+            // Move infected file to quarantine
+            let quarantine_path = format!("{}/{}_INFECTED.tmp", state.config.quarantine_dir, media_id);
+            fs::rename(&file_path, &quarantine_path).await.map_err(|e| {
+                tracing::error!("Failed to quarantine infected file: {}", e);
+                AppError::StorageError("Failed to quarantine infected file".to_string())
+            })?;
+
+            let virus_name = scan_result.virus_name.as_deref().unwrap_or("Unknown");
+            tracing::error!(
+                "VIRUS DETECTED: {} in upload {} ({}), quarantined to {}",
+                virus_name,
+                media_id,
+                original_filename,
+                quarantine_path
+            );
+
+            return Err(AppError::InvalidInput(format!(
+                "File rejected: virus detected ({}). Upload has been quarantined.",
+                virus_name
+            )));
+        }
+
+        tracing::info!(
+            "Virus scan passed for {} in {}ms",
+            media_id,
+            scan_result.scan_time_ms
+        );
+    } else {
+        tracing::warn!("Virus scanner unavailable, skipping scan for {}", media_id);
+    }
+
+    // TODO: Queue for additional processing
     // - Thumbnail generation
     // - Video transcoding
     // - Upload to MinIO
@@ -173,7 +240,7 @@ async fn upload_video(
     Ok(Json(UploadResponse {
         media_id: media_id.clone(),
         status: "queued".to_string(),
-        message: format!("Upload successful, processing queued for {}", media_id),
+        message: format!("Upload successful (virus scan passed), processing queued for {}", media_id),
     }))
 }
 

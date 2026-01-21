@@ -16,8 +16,12 @@ async fn build_test_app() -> axum::Router {
         minio_region: "us-east-1".to_string(),
         max_video_size_mb: 500,
         ffmpeg_path: "ffmpeg".to_string(),
+        clamd_host: "localhost".to_string(),
+        clamd_port: 3310,
+        quarantine_dir: "/tmp/media-test-quarantine".to_string(),
     };
     fs::create_dir_all(&config.upload_dir).ok();
+    fs::create_dir_all(&config.quarantine_dir).ok();
     let storage = StorageClient::new(&config)
         .await
         .expect("Failed to create storage client");
@@ -148,6 +152,9 @@ async fn test_minio_upload() {
         minio_region: "us-east-1".to_string(),
         max_video_size_mb: 500,
         ffmpeg_path: "ffmpeg".to_string(),
+        clamd_host: "localhost".to_string(),
+        clamd_port: 3310,
+        quarantine_dir: "/tmp/media-test-quarantine".to_string(),
     };
 
     match StorageClient::new(&config).await {
@@ -177,6 +184,9 @@ async fn test_minio_download() {
         minio_region: "us-east-1".to_string(),
         max_video_size_mb: 500,
         ffmpeg_path: "ffmpeg".to_string(),
+        clamd_host: "localhost".to_string(),
+        clamd_port: 3310,
+        quarantine_dir: "/tmp/media-test-quarantine".to_string(),
     };
 
     match StorageClient::new(&config).await {
@@ -215,6 +225,9 @@ async fn test_minio_delete() {
         minio_region: "us-east-1".to_string(),
         max_video_size_mb: 500,
         ffmpeg_path: "ffmpeg".to_string(),
+        clamd_host: "localhost".to_string(),
+        clamd_port: 3310,
+        quarantine_dir: "/tmp/media-test-quarantine".to_string(),
     };
 
     match StorageClient::new(&config).await {

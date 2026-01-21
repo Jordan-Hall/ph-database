@@ -4,26 +4,38 @@ pub mod config;
 pub mod error;
 pub mod storage;
 pub mod video;
+pub mod virus_scan;
 
 use axum::{
     routing::{get, post},
     Router,
 };
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub use config::Config;
 pub use storage::StorageClient;
 pub use video::VideoProcessor;
+pub use virus_scan::VirusScanner;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub config: Config,
+    pub storage: StorageClient,
+    pub scanner: VirusScanner,
+}
 
 /// Build application router for testing
 pub fn build_app(config: Config, storage: StorageClient) -> Router {
-    let shared_storage = Arc::new(RwLock::new(storage));
+    let scanner = VirusScanner::new(config.clamd_host.clone(), config.clamd_port);
+    let app_state = AppState {
+        config,
+        storage,
+        scanner,
+    };
 
     Router::new()
         .route("/health", get(health_check))
         .route("/upload", post(upload_video))
-        .with_state(shared_storage)
+        .with_state(app_state)
 }
 
 async fn health_check() -> &'static str {
