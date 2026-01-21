@@ -16,12 +16,14 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
 mod error;
+mod job_queue;
 mod storage;
 mod video;
 mod virus_scan;
 
 use config::Config;
 use error::{AppError, AppResult};
+use job_queue::{JobQueue, JobType, Job};
 use storage::StorageClient;
 use virus_scan::VirusScanner;
 
@@ -73,11 +75,18 @@ async fn main() -> anyhow::Result<()> {
     fs::create_dir_all(&config.quarantine_dir).await?;
     tracing::info!("Quarantine directory ready: {}", config.quarantine_dir);
 
+    // Initialize job queue
+    let job_queue = JobQueue::new(&config.redis_url, "media-processing")
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to initialize job queue: {}", e))?;
+    tracing::info!("Job queue initialized");
+
     // Build application state
     let app_state = AppState {
         config: config.clone(),
         storage,
         scanner,
+        job_queue: job_queue.clone(),
     };
 
     // Configure CORS
@@ -116,6 +125,7 @@ pub struct AppState {
     pub config: Config,
     pub storage: StorageClient,
     pub scanner: VirusScanner,
+    pub job_queue: JobQueue,
 }
 
 #[derive(Serialize)]
@@ -229,18 +239,45 @@ async fn upload_video(
         tracing::warn!("Virus scanner unavailable, skipping scan for {}", media_id);
     }
 
-    // TODO: Queue for additional processing
-    // - Thumbnail generation
-    // - Video transcoding
-    // - Upload to MinIO
-    // - Update database
+    // Queue jobs for processing
+    let thumbnail_job = Job::new(JobType::GenerateThumbnail {
+        media_id: media_id.clone(),
+        video_path: file_path.clone(),
+        timestamp_seconds: 5,
+    });
 
-    tracing::info!("Upload received: {} -> {}", original_filename, media_id);
+    let metadata_job = Job::new(JobType::ExtractMetadata {
+        media_id: media_id.clone(),
+        video_path: file_path.clone(),
+    });
+
+    let transcode_job = Job::new(JobType::TranscodeVideo {
+        media_id: media_id.clone(),
+        input_path: file_path.clone(),
+        output_path: format!("{}/{}_transcoded.mp4", state.config.upload_dir, media_id),
+    });
+
+    state.job_queue.clone().enqueue(thumbnail_job).await.map_err(|e| {
+        tracing::error!("Failed to enqueue thumbnail job: {}", e);
+        AppError::ProcessingError(format!("Failed to queue processing: {}", e))
+    })?;
+
+    state.job_queue.clone().enqueue(metadata_job).await.map_err(|e| {
+        tracing::error!("Failed to enqueue metadata job: {}", e);
+        AppError::ProcessingError(format!("Failed to queue processing: {}", e))
+    })?;
+
+    state.job_queue.clone().enqueue(transcode_job).await.map_err(|e| {
+        tracing::error!("Failed to enqueue transcode job: {}", e);
+        AppError::ProcessingError(format!("Failed to queue processing: {}", e))
+    })?;
+
+    tracing::info!("Upload received: {} -> {}, queued 3 processing jobs", original_filename, media_id);
 
     Ok(Json(UploadResponse {
         media_id: media_id.clone(),
         status: "queued".to_string(),
-        message: format!("Upload successful (virus scan passed), processing queued for {}", media_id),
+        message: format!("Upload successful (virus scan passed), {} processing jobs queued", 3),
     }))
 }
 

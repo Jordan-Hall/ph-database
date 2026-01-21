@@ -80,6 +80,7 @@ pub enum JobStatus {
 }
 
 /// Job queue for managing background tasks
+#[derive(Clone)]
 pub struct JobQueue {
     redis: redis::aio::ConnectionManager,
     queue_name: String,

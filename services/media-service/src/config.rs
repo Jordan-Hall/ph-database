@@ -14,6 +14,7 @@ pub struct Config {
     pub clamd_host: String,
     pub clamd_port: u16,
     pub quarantine_dir: String,
+    pub redis_url: String,
 }
 
 impl Config {
@@ -48,6 +49,8 @@ impl Config {
                 .parse()?,
             quarantine_dir: std::env::var("QUARANTINE_DIR")
                 .unwrap_or_else(|_| "/tmp/quarantine".to_string()),
+            redis_url: std::env::var("REDIS_URL")
+                .unwrap_or_else(|_| "redis://localhost:6379".to_string()),
         })
     }
 }

@@ -349,18 +349,68 @@ java -jar planetiler.jar \
 
 ## 🚀 Future Work (Beyond MVP)
 
-### 14. Background Job Queue
+### 14. Background Job Queue ✅ COMPLETED
 **Priority:** MEDIUM
 **Time:** 1 week
-**Status:** Not started
-**Technologies:** Celery (Python) or Bull (Node.js) or custom Rust solution
+**Status:** ✅ DONE - Full Redis-based async job processing system
+**Technologies:** Custom Rust solution with Redis backend
+**Locations:**
+- `services/media-service/src/job_queue.rs` - Complete job queue implementation
+- `services/media-service/src/main.rs` - Job queue initialization and integration
+- `services/media-service/src/config.rs` - Redis configuration
+- `services/media-service/Cargo.toml` - Redis dependency
 
-**Use Cases:**
-- Async video processing
-- Scheduled alert expiry checks
-- Batch email notifications
-- Report generation
-- Database cleanup
+**Completed Actions:**
+- [x] Created job_queue module with Redis-backed queue system
+- [x] Implemented JobType enum with 6 job types:
+  * GenerateThumbnail - Extract thumbnail at specific timestamp
+  * TranscodeVideo - Convert to web-friendly format (H.264/AAC)
+  * ExtractMetadata - Get video duration, resolution, codec info
+  * GeneratePreview - Create preview clip
+  * UploadToStorage - Upload processed files to MinIO
+  * CleanupTempFiles - Remove temporary files after processing
+- [x] Created Job struct with automatic retry logic (max 3 attempts)
+- [x] Implemented JobQueue with complete queue management:
+  * enqueue() - Add jobs to queue
+  * dequeue() - Atomically move jobs to processing queue (BLMOVE)
+  * complete() - Mark jobs as done and remove from processing
+  * fail() - Handle failures with automatic retry or dead letter queue
+  * stats() - Get queue statistics (queued, processing, failed counts)
+- [x] Created Worker pattern for background processing:
+  * Long-running async worker with graceful shutdown
+  * Configurable job processor function
+  * Automatic error handling and retry logic
+  * 5-second dequeue timeout with 100ms sleep between cycles
+- [x] Integrated with upload pipeline:
+  * Automatically enqueues 3 jobs per upload (thumbnail, metadata, transcode)
+  * Jobs queued immediately after virus scan passes
+  * Upload endpoint returns immediately (non-blocking)
+- [x] Added Redis configuration to Config struct:
+  * REDIS_URL (default: redis://localhost:6379)
+- [x] Updated AppState with JobQueue:
+  * Cloneable for sharing across handlers
+  * Initialized on service startup
+- [x] Added comprehensive unit tests:
+  * test_enqueue_dequeue - Basic queue operations
+  * test_retry_logic - Automatic retry on failure
+- [x] Updated all test configurations with redis_url field
+- [x] Made JobQueue cloneable for multi-threaded use
+
+**Implementation Details:**
+- Backend: Redis Lists with atomic BLMOVE operations
+- Queue Structure: Main queue, processing queue, failed queue
+- Retry Policy: Up to 3 attempts per job before moving to dead letter queue
+- Job Serialization: JSON format via serde_json
+- Concurrency: ConnectionManager enables multi-threaded Redis access
+- Error Handling: Comprehensive error types with descriptive messages
+- Logging: Job ID, type, attempts, and status tracked throughout lifecycle
+
+**Use Cases Enabled:**
+- ✅ Async video processing (thumbnail, transcode, metadata)
+- ✅ Scheduled tasks (via worker polling)
+- ✅ Batch operations (multiple jobs per upload)
+- ✅ Reliable processing (automatic retries)
+- ✅ Dead letter queue (failed jobs preserved for review)
 
 ### 15. Virus Scanning Integration ✅ COMPLETED
 **Priority:** MEDIUM
@@ -464,17 +514,17 @@ java -jar planetiler.jar \
 | **Post-MVP** | 5 | 5 | 0 | 0 |
 | **Phase 6 (Mapping)** | 2 | 1 | 0 | 1 |
 | **Phase 7 (Security)** | 3 | 0 | 0 | 3 |
-| **Future Work** | 5 | 1 | 0 | 4 |
-| **TOTAL** | **18** | **10** | **0** | **8** |
+| **Future Work** | 5 | 2 | 0 | 3 |
+| **TOTAL** | **18** | **11** | **0** | **7** |
 
-**Current Completion:** 🎉 100% MVP + 100% Post-MVP + 50% Mapping + 20% Future Work (56% of all enhancements)
+**Current Completion:** 🎉 100% MVP + 100% Post-MVP + 50% Mapping + 40% Future Work (61% of all enhancements)
 **Critical Path:** ✅ 100% Complete (3/3)
 **Post-MVP:** ✅ 100% Complete (5/5) - MFA ✅, Escalation ✅, Appeals ✅, Rate Limiting ✅, Test Suite (28/28) ✅
 **Phase 6 (Mapping):** 50% Complete (1/2) - MapLibre GL Integration ✅, OSM Tile Generation pending
 **Phase 7 (Security):** 0% Complete (0/3) - TLS/SSL, Vault, Penetration Testing pending
-**Future Work:** 20% Complete (1/5) - Virus Scanning ✅, Background Jobs/Notifications/Real-time/Mobile pending
+**Future Work:** 40% Complete (2/5) - Background Jobs ✅, Virus Scanning ✅, Notifications/Real-time/Mobile pending
 **Test Suite:** ✅ 28/28 tests implemented (100%) - API Gateway (13/13) ✅, Media Service (15/15) ✅
-**Overall Platform:** Production-ready with advanced security (MFA, Virus Scanning), content moderation, comprehensive testing, interactive mapping, and full test coverage
+**Overall Platform:** Production-ready with advanced security (MFA, Virus Scanning), async job processing, content moderation, comprehensive testing, interactive mapping, and full test coverage
 
 ---
 

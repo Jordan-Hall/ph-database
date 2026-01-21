@@ -25,7 +25,7 @@ async fn build_test_app() -> axum::Router {
     let storage = StorageClient::new(&config)
         .await
         .expect("Failed to create storage client");
-    build_app(config, storage)
+    build_app(config, storage).await
 }
 
 fn create_test_video(duration_secs: u32) -> PathBuf {
@@ -155,6 +155,7 @@ async fn test_minio_upload() {
         clamd_host: "localhost".to_string(),
         clamd_port: 3310,
         quarantine_dir: "/tmp/media-test-quarantine".to_string(),
+        redis_url: "redis://localhost:6379".to_string(),
     };
 
     match StorageClient::new(&config).await {
@@ -187,6 +188,7 @@ async fn test_minio_download() {
         clamd_host: "localhost".to_string(),
         clamd_port: 3310,
         quarantine_dir: "/tmp/media-test-quarantine".to_string(),
+        redis_url: "redis://localhost:6379".to_string(),
     };
 
     match StorageClient::new(&config).await {
@@ -228,6 +230,7 @@ async fn test_minio_delete() {
         clamd_host: "localhost".to_string(),
         clamd_port: 3310,
         quarantine_dir: "/tmp/media-test-quarantine".to_string(),
+        redis_url: "redis://localhost:6379".to_string(),
     };
 
     match StorageClient::new(&config).await {
