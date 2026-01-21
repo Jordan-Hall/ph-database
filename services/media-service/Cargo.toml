@@ -61,5 +61,8 @@ async-stream = "0.3"
 metrics = "0.21"
 metrics-exporter-prometheus = "0.13"
 
+# Redis for job queue
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
 [dev-dependencies]
 tempfile = "3.8"
