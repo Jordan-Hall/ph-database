@@ -214,7 +214,7 @@ pub fn MfaSettings() -> Element {
                                     }
 
                                     div { class: "govuk-warning-text govuk-!-margin-top-6",
-                                        span { class: "govuk-warning-text__icon", "!", aria_hidden: "true" }
+                                        span { class: "govuk-warning-text__icon", aria_hidden: "true", "!" }
                                         strong { class: "govuk-warning-text__text",
                                             span { class: "govuk-warning-text__assistive", "Warning" }
                                             "Save your backup codes"

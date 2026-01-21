@@ -261,21 +261,42 @@ java -jar planetiler.jar \
 # (configured in docker-compose.yml)
 ```
 
-### 10. MapLibre GL Integration
+### 10. MapLibre GL Integration ✅ COMPLETED
 **Priority:** MEDIUM
 **Time:** 4-6 hours
-**Status:** Map view page exists, needs MapLibre binding
+**Status:** ✅ DONE - Full MapLibre GL integration with interactive map
 **Location:** `src/pages/map_view.rs`
 
-**Tasks:**
-- [ ] Add MapLibre GL JS dependencies to Cargo.toml
-- [ ] Create Dioxus bindings for MapLibre
-- [ ] Initialize map in map_view.rs
-- [ ] Add map controls (zoom, pan, etc.)
-- [ ] Add marker rendering for map entries
-- [ ] Add click handlers for markers
-- [ ] Add popup with entry details
-- [ ] Style map to match UK GDS
+**Completed Actions:**
+- [x] Loaded MapLibre GL 4.7.1 from CDN (CSS + JS)
+- [x] Created Dioxus component with JavaScript interop via js_sys::eval
+- [x] Initialized interactive map centered on UK (lat: 54.5, lon: -2.0, zoom: 5.5)
+- [x] Added OpenStreetMap raster tiles as base layer
+- [x] Added NavigationControl (zoom + compass) and ScaleControl
+- [x] Implemented marker system with color-coding by harm risk:
+  * High risk: Red markers (#d4351c)
+  * Medium risk: Orange markers (#f47738)
+  * Low risk: Green markers (#00703c)
+  * Unknown risk: Grey markers (#505a5f)
+- [x] Added click handlers with popups showing:
+  * Entry description
+  * Risk level
+  * Location precision
+  * Coordinates (4 decimal places for privacy)
+  * Link to full report details
+- [x] Styled map container and popups to match UK GDS design system
+- [x] Integrated with API endpoint GET `/api/v1/map/entries`
+- [x] Added loading state and error handling
+- [x] Included OSM attribution and entry count display
+- [x] Made ApiClient.get() and .post() methods public for page usage
+
+**Implementation Details:**
+- MapLibre GL Version: 4.7.1 (from unpkg CDN)
+- Map Style: Custom with OSM raster tiles
+- Marker Rendering: Custom DOM elements with CSS classes
+- Popup Format: UK GDS summary list with govuk-link styling
+- API Integration: Fetches MapEntry array with id, lat/lon, precision, harm_risk, description
+- Privacy: Coordinates displayed with limited precision (4 decimal places)
 
 ---
 
@@ -401,16 +422,17 @@ java -jar planetiler.jar \
 |----------|-------|----------|-------------|---------|
 | **Critical Path** | 3 | 3 | 0 | 0 |
 | **Post-MVP** | 5 | 5 | 0 | 0 |
-| **Phase 6 (Mapping)** | 2 | 0 | 0 | 2 |
+| **Phase 6 (Mapping)** | 2 | 1 | 0 | 1 |
 | **Phase 7 (Security)** | 3 | 0 | 0 | 3 |
 | **Future Work** | 5 | 0 | 0 | 5 |
-| **TOTAL** | **18** | **8** | **0** | **10** |
+| **TOTAL** | **18** | **9** | **0** | **9** |
 
-**Current Completion:** 🎉 100% MVP + 100% Post-MVP (44% of all enhancements)
-**Critical Path:** ✅ 100% Complete
+**Current Completion:** 🎉 100% MVP + 100% Post-MVP + 50% Mapping (50% of all enhancements)
+**Critical Path:** ✅ 100% Complete (3/3)
 **Post-MVP:** ✅ 100% Complete (5/5) - MFA ✅, Escalation ✅, Appeals ✅, Rate Limiting ✅, Test Suite (28/28) ✅
+**Phase 6 (Mapping):** 50% Complete (1/2) - MapLibre GL Integration ✅, OSM Tile Generation pending
 **Test Suite:** ✅ 28/28 tests implemented (100%) - API Gateway (13/13) ✅, Media Service (15/15) ✅
-**Overall Platform:** Production-ready with advanced security (MFA), content moderation, comprehensive testing, and full test coverage
+**Overall Platform:** Production-ready with advanced security (MFA), content moderation, comprehensive testing, interactive mapping, and full test coverage
 
 ---
 

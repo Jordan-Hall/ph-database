@@ -61,7 +61,7 @@ impl ApiClient {
     }
 
     /// Generic GET request
-    async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, String> {
+    pub async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, String> {
         let url = format!("{}{}", self.base_url, path);
 
         // Use web-sys fetch API directly for full header support
@@ -97,7 +97,7 @@ impl ApiClient {
     }
 
     /// Generic POST request
-    async fn post<T: Serialize, R: DeserializeOwned>(
+    pub async fn post<T: Serialize, R: DeserializeOwned>(
         &self,
         path: &str,
         body: &T,
