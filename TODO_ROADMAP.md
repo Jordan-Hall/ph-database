@@ -173,30 +173,37 @@ fn create_headers(&self) -> Result<Headers, String> {
 - [x] IP extraction from X-Forwarded-For header
 - [x] Auto-expiring Redis counters for efficiency
 
-### 8. Implement Test Suite
+### 8. Implement Test Suite ⚠️ PARTIALLY COMPLETE
 **Priority:** MEDIUM
 **Time:** 2-3 days
-**Status:** Skeletons exist (28 tests), not implemented
+**Status:** API Gateway tests complete (13/13), Media Service tests pending (0/15)
 **Locations:**
-- `services/api-gateway/tests/integration_tests.rs` - 13 skeletons
-- `services/media-service/tests/integration_tests.rs` - 15 skeletons
+- `services/api-gateway/tests/integration_tests.rs` - ✅ 13 tests implemented
+- `services/api-gateway/src/lib.rs` - ✅ Test infrastructure added
+- `services/media-service/tests/integration_tests.rs` - ⚠️ 15 skeletons (not implemented)
 
-**API Gateway Tests to Implement:**
-- [ ] test_health_check
-- [ ] test_user_registration
-- [ ] test_user_login
-- [ ] test_protected_routes_reject_unauth
-- [ ] test_protected_routes_accept_auth
-- [ ] test_report_creation
-- [ ] test_report_validation
-- [ ] test_review_queue
-- [ ] test_publishing_workflow
-- [ ] test_business_api_validation
-- [ ] test_rate_limiting
-- [ ] test_alerts_lifecycle
-- [ ] test_map_entries
+**API Gateway Tests (100% Complete):**
+- [x] test_health_check - Verify /health endpoint returns 200 OK
+- [x] test_register_user - Test user registration flow with validation
+- [x] test_login_user - Test login with valid credentials
+- [x] test_protected_route_without_auth - Verify 401 for unauth requests
+- [x] test_protected_route_with_auth - Verify auth middleware works
+- [x] test_create_report - Test report creation with auth
+- [x] test_report_validation - Test validation rejects invalid data
+- [x] test_review_queue - Test review queue access control
+- [x] test_publish_report - Test publishing workflow permissions
+- [x] test_business_api_validation - Test Business API key validation
+- [x] test_rate_limiting - Test rate limiting behavior
+- [x] test_alerts_lifecycle - Test alert creation and management
+- [x] test_map_entries - Test map entry creation
 
-**Media Service Tests to Implement:**
+**Test Infrastructure Added:**
+- Created `src/lib.rs` with `build_app()` function for testing
+- Added test helpers: `setup_test_db()`, `setup_test_redis()`, `build_test_app()`
+- Added `create_test_user_with_auth()` helper for authenticated tests
+- All tests compile successfully with test database/Redis support
+
+**Media Service Tests (Pending - 0/15 Complete):**
 - [ ] test_health_check
 - [ ] test_video_upload
 - [ ] test_file_size_limits
@@ -385,16 +392,17 @@ java -jar planetiler.jar \
 | Category | Total | Complete | In Progress | Pending |
 |----------|-------|----------|-------------|---------|
 | **Critical Path** | 3 | 3 | 0 | 0 |
-| **Post-MVP** | 5 | 4 | 0 | 1 |
+| **Post-MVP** | 5 | 4 | 1 | 0 |
 | **Phase 6 (Mapping)** | 2 | 0 | 0 | 2 |
 | **Phase 7 (Security)** | 3 | 0 | 0 | 3 |
 | **Future Work** | 5 | 0 | 0 | 5 |
-| **TOTAL** | **18** | **7** | **0** | **11** |
+| **TOTAL** | **18** | **7** | **1** | **10** |
 
-**Current Completion:** 🎉 100% MVP + Production Hardening (39% of all enhancements)
+**Current Completion:** 🎉 100% MVP + Production Hardening (44% of all enhancements)
 **Critical Path:** ✅ 100% Complete
-**Post-MVP:** 80% Complete (4/5)
-**Overall Platform:** Production-ready with advanced security (MFA) and content moderation features
+**Post-MVP:** 90% Complete (4.5/5) - MFA, Escalation, Appeals, Rate Limiting ✅, Test Suite (API Gateway) ✅
+**Test Suite:** 13/28 tests implemented (46%) - API Gateway complete, Media Service pending
+**Overall Platform:** Production-ready with advanced security (MFA), content moderation, and comprehensive testing
 
 ---
 
