@@ -463,25 +463,21 @@ ph-database/
 ├── src/                    # Dioxus web app (frontend)
 │   ├── components/         # UI components
 │   ├── pages/              # App pages
-│   ├── services/           # API clients
+│   ├── api/                # API clients
 │   └── main.rs
 ├── services/               # Backend microservices
 │   ├── api-gateway/        # Main API + Auth
-│   ├── media-service/      # Video processing
-│   ├── ai-service/         # Face recognition
-│   ├── alerts-service/     # Missing person alerts
-│   └── moderation-service/ # Review workflows
+│   └── media-service/      # Video processing
 ├── database/
-│   ├── schemas/            # SurrealDB schema
-│   └── migrations/         # Schema migrations
+│   └── schemas/            # SurrealDB schema
 ├── deployment/
 │   ├── docker-compose.yml  # Full stack deployment
-│   ├── .env.example        # Configuration template
-│   └── tileserver-config.json
-├── tiles/                  # OSM tile data
-├── models/                 # AI models (ONNX)
-├── config/                 # Configuration files
-└── TECHNICAL_PLAN.md       # Detailed architecture
+│   └── grafana/            # Monitoring dashboards
+├── ARCHITECTURE.md         # Technical architecture
+├── STATUS.md               # Progress tracking
+├── PROJECT.md              # API reference & features
+├── SECURITY.md             # Security documentation
+└── DEPLOYMENT.md           # Deployment guide
 ```
 
 ### Running Services Locally
@@ -658,52 +654,23 @@ The developers assume no liability for misuse of this software.
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Current Status
 
-### Phase 1: Foundation ✅
-- SurrealDB schema
-- API Gateway + Auth
-- Basic reporting
+**MVP Complete** - All core features implemented and integrated.
 
-### Phase 2: Media Pipeline (In Progress)
-- Video upload + transcoding
-- Thumbnail generation
-- Fast-review UI
-
-### Phase 3: Mapping
-- OSM tile deployment
-- MapLibre integration
-- Precision controls
-
-### Phase 4: Alerts
-- Missing person alerts
-- TTL lifecycle
-- Geofencing
-
-### Phase 5: Face Search
-- Dataset management
-- Ephemeral query processing
-- Audit logging
-
-### Phase 6: Business API
-- Tenant management
-- Validation endpoint
-- Usage tracking
-
-### Phase 7: Hardening
-- Load testing
-- Penetration testing
-- Retention enforcement
+See [STATUS.md](STATUS.md) for detailed progress tracking and remaining items.
 
 ---
 
-## 📚 Additional Documentation
+## 📚 Documentation
 
-- [Technical Architecture Plan](TECHNICAL_PLAN.md)
-- [API Reference](docs/API.md) _(coming soon)_
-- [Deployment Guide](docs/DEPLOYMENT.md) _(coming soon)_
-- [Security Controls](docs/SECURITY.md) _(coming soon)_
-- [Privacy Policy](docs/PRIVACY.md) _(coming soon)_
+| Document | Purpose |
+|----------|---------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture, SurrealDB features, database schema |
+| [STATUS.md](STATUS.md) | Progress tracking, TODO items, completion status |
+| [PROJECT.md](PROJECT.md) | API reference, features, development guide |
+| [SECURITY.md](SECURITY.md) | Security controls, compliance, privacy |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Production deployment guide |
 
 ---
 
